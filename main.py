@@ -35,13 +35,13 @@ while running:
 
     key=pygame.key.get_pressed()
     if key[pygame.K_RIGHT]:
-        player_x += 1
+        player_x += 0.1
     if key[pygame.K_LEFT]:
-        player_x -= 1
+        player_x -= 0.1
 
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("purple")
-    debug_menu = font.render(f"X: {player_x}    Y: {player_y}", True, "red")
+    debug_menu = font.render(f"X: {round(player_x, 1)}    Y: {round(player_y, 1)}", True, "red")
     # RENDER YOUR GAME HERE
     
     if debug == True:
