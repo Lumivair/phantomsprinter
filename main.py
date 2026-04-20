@@ -24,6 +24,7 @@ player_x = 0
 player_y = 0
 ground_x = 0
 
+
 while running:
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
@@ -41,10 +42,10 @@ while running:
     key=pygame.key.get_pressed()
     if key[pygame.K_RIGHT]:
         player_x += 0.1
-        ground_x -= 6
+        ground_x -= 12
     if key[pygame.K_LEFT]:
         player_x -= 0.1
-        ground_x += 6
+        ground_x += 12
 
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("purple")
@@ -56,7 +57,7 @@ while running:
         
     # flip() the display to put your work on screen
     screen.blit(ground, (ground_x,552))
-    screen.blit(player, (100,100))
+    screen.blit(player, (512,300))
     pygame.display.flip()
 
     clock.tick(60)  # limits FPS to 60
