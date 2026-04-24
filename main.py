@@ -5,7 +5,16 @@ import pygame
 import sys
 import datetime
 
-
+def exit():
+    print(now.strftime("%y-%m-%d %H:%M:%S:"),"Game successfully closed") # exit with success message
+    pygame.quit()
+    sys.exit()
+    
+def side_collision_check():
+    for object in objects:
+        if player.rect().colliderect(object.rect()) and noclip == False:
+            return True
+            
 def get_screen_ratio():
         screen_size = pygame.display.get_window_size()
         screen_width = screen_size[0]
@@ -49,8 +58,6 @@ class Environment:
     def rect(self):
         return self.texture.get_rect(topleft=(self.scoords()))
 
-
-
 class Camera:
     def __init__(self):
         self.wcoord_x = -8
@@ -61,6 +68,7 @@ screen = pygame.display.set_mode((1280, 720))
 clock = pygame.time.Clock()
 running = True
 now = datetime.datetime.now() # set variable now to time
+
 
 print(get_screen_ratio())
 
@@ -74,11 +82,11 @@ noclip = False
 # class setup:
 ground = Environment(-6, 0, "assets/debug/floor.png", get_screen_ratio())
 box2x = Environment(1, 2, "assets/debug/box2x.png", get_screen_ratio())
-box = Environment(-2, 3, "assets/debug/box.png", get_screen_ratio())
+box = Environment(-2, 3.5, "assets/debug/box.png", get_screen_ratio())
 
-player = Entity("hanspeter", -0.5, 2, "assets/debug/player.png", get_screen_ratio(), 32 * get_screen_ratio(), 64 * get_screen_ratio())
+player = Entity("hanspeter", -0.5, 3, "assets/debug/player.png", get_screen_ratio(), 32 * get_screen_ratio(), 64 * get_screen_ratio())
 camera = Camera()
-objects = [ground, box, box2x]
+
 
 
 
@@ -88,9 +96,7 @@ while True:
     # pygame.QUIT event means the user clicked X to close your window
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            exit(print(now.strftime("%y-%m-%d %H:%M:%S:"),"Game successfully closed")) # exit with success message
-            pygame.quit()
-            sys.exit()
+            exit()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_F3:
                 if debug == True:
@@ -103,13 +109,21 @@ while True:
                 elif noclip == False:
                     noclip = True
                     player.standing = False
-
+    if player.y < -25:
+        exit()
+    
+    objects = [ground, box, box2x]
 
     key_pressed=pygame.key.get_pressed()
     if key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
+        if side_collision_check():
+            player.x -= 0.1
+
     if key_pressed[pygame.K_LEFT]:
         player.x -= 0.1
+        if side_collision_check():
+            player.x += 0.1
     if noclip == True:
         if key_pressed[pygame.K_UP]:
             player.y += 0.2
@@ -121,6 +135,7 @@ while True:
             player.y_velocity = 0.25
     
     
+    # print (objects_rect)
     
 
     camera.wcoord_x = player.x - ((pygame.display.get_window_size()[0] / 64 / get_screen_ratio()) - 0.5)
@@ -131,15 +146,30 @@ while True:
     screen.fill("purple")
     debug_menu = font.render(f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}", True, "red")
 
-    if not player.rect().colliderect(ground.rect()) and noclip == False or player.jumping == True and noclip == False:
-        player.y += player.y_velocity
-        if player.rect().colliderect(ground.rect()) and noclip == False:
+    
+    for object in objects:
+        if not player.rect().colliderect(object.rect()) and noclip == False or player.jumping == True and noclip == False:
+            player.y += player.y_velocity * (1 / len(objects))
+        if player.rect().colliderect(object.rect()) and noclip == False and player.y_velocity < 0:
             player.jumping = False
             player.y_velocity = 0
-            player.y = ground.y + player.height / (32 * get_screen_ratio())
-        elif player.y_velocity > -1:
-                player.y_velocity -= 0.01
-        
+            player.y = object.y + player.height / (32 * get_screen_ratio())
+        elif player.rect().colliderect(object.rect()) and noclip == False and player.y_velocity > 0:
+            player.y_velocity = 0
+            player.y = object.y - object.height / (32 * get_screen_ratio())
+        else:
+            if player.y_velocity > -1:
+                player.y_velocity -= 0.01 * (1 / len(objects))
+            
+    # if player.rect().colliderect(ground.rect()) == -1 and noclip == False or player.jumping == True and noclip == False:
+    #     player.y += player.y_velocity
+    #     if player.rect().colliderect(ground.rect()) > -1 and noclip == False:
+    #         player.jumping = False
+    #         player.y_velocity = 0
+    #         player.y = ground.y + player.height / (32 * get_screen_ratio())
+    #     elif player.y_velocity > -1:
+    #             player.y_velocity -= 0.01
+    #print(objects_rect[player.rect().collidelist(objects_rect)])
 
     # RENDER YOUR GAME HERE
     if debug == True:
