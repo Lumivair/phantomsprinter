@@ -25,7 +25,7 @@ class Entity:
         self.x = x
         self.y = y
         self.y_velocity = 0
-        self.standing = False
+        self.jumping = False
         self.width = width
         self.height = height
         self.texture = pygame.image.load(texture_path)
@@ -115,43 +115,41 @@ while True:
             player.y += 0.2
         if key_pressed[pygame.K_DOWN]:
             player.y -= 0.2
+    else:
+        if key_pressed[pygame.K_UP] and player.jumping == False:
+            player.jumping = True
+            player.y_velocity = 0.25
     
     
     
 
     camera.wcoord_x = player.x - ((pygame.display.get_window_size()[0] / 64 / get_screen_ratio()) - 0.5)
     camera.wcoord_y = player.y + ((pygame.display.get_window_size()[1] / 64 / get_screen_ratio()) + 0.5)
-    print((pygame.display.get_window_size()[0] / 64 / get_screen_ratio_exact()[0]) - 0.5)
-    print(player.width)
-    print(get_screen_ratio_exact()[0])
-    print(pygame.display.get_window_size()[0])
     # camera.wcoord_x = -7 #static camera
     # camera.wcoord_y = 5 
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("purple")
     debug_menu = font.render(f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}", True, "red")
+
+    if not player.rect().colliderect(ground.rect()) and noclip == False or player.jumping == True and noclip == False:
+        player.y += player.y_velocity
+        if player.rect().colliderect(ground.rect()) and noclip == False:
+            player.jumping = False
+            player.y_velocity = 0
+            player.y = ground.y + player.height / (32 * get_screen_ratio())
+        elif player.y_velocity > -1:
+                player.y_velocity -= 0.01
+        
+
     # RENDER YOUR GAME HERE
-    
     if debug == True:
         screen.blit(debug_menu, (0,0))
-    
-
-
-    # flip() the display to put your work on screen
     screen.blit(ground.texture, (ground.scoords()))
     screen.blit(box2x.texture, (box2x.scoords()))
     screen.blit(box.texture, (box.scoords()))
     screen.blit(player.texture, (player.scoords()))
 
-    if not player.rect().colliderect(ground.rect()) and noclip == False and player.standing == False:
-        player.y -= player.y_velocity
-        if player.y_velocity < 1:
-            player.y_velocity += 0.01
-    if player.rect().colliderect(ground.rect()) and noclip == False:
-        player.y_velocity = 0
-        player.y = ground.y + player.height / (32 * get_screen_ratio())
-        player.standing = True
-    
+    # flip() the display to put your work on screen
     pygame.display.flip()
     clock.tick(60)  # limits FPS to 60
 
