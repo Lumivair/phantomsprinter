@@ -114,6 +114,7 @@ class Camera:
 pygame.init()
 screen = pygame.display.set_mode((1280, 720))
 pygame.display.set_caption("PhantomSprinter") # set window title
+pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
 running = True
@@ -172,7 +173,10 @@ while True:
     if player.y < -25:
         exit()
     screen.fill("purple")
-    debug_menu = assets["font"].render(f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}", True, "red")
+    debug_menu = [
+        f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}",
+        f"Chunk: {str(player.chunk())}"
+                  ]
 
     # UPDATE CHUNKS
     update_loaded_chunks()
@@ -196,12 +200,12 @@ while True:
     camera.update() # remove for static cam        
 
     # RENDERING
-    if debug == True:
-        screen.blit(debug_menu, (0,0))
     for object in objects:
         screen.blit(object.texture, (object.scoords()))
     screen.blit(player.texture, (player.scoords()))
-
+    if debug == True:
+        for line in debug_menu:
+            screen.blit(assets["font"].render(line, True, "red"), (0, debug_menu.index(line) * 60))
     # flip() the display to put your work on screen
     pygame.display.flip()
 
