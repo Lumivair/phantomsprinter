@@ -1,26 +1,52 @@
-# main PhantomSprinter game
-
-# imports
+# =========================
+# IMPORTS
+# =========================
 import pygame
 import sys
 import datetime
+import math
 
+# =========================
+# Functions
+# =========================
+def update_loaded_chunks():
+    new_chunks = []
+    new_chunks.append(player.chunk())
+    new_chunks.append([player.chunk()[0] + 1, player.chunk()[1]])
+    new_chunks.append([player.chunk()[0] -1 , player.chunk()[1]]) # FIX if bored, make it smarter and not just all chunks next to player
+    # print("new:", new_chunks)
+    # print("loaded:", loaded_chunks)
+    for chunk in new_chunks:
+        if chunk not in loaded_chunks:
+            loaded_chunks.append(chunk)
+            try: 
+                with open(f"level/1/{chunk[0]}.{chunk[1]}.pms") as level:
+                    for line in level:
+                        line = line.strip()
+                        line = line.split()
+                        objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], assets[line[0]]))
+                new_chunks = []
+            except FileNotFoundError:
+                print("empty chunk load")
+            
 def exit():
     print(now.strftime("%y-%m-%d %H:%M:%S:"),"Game successfully closed") # exit with success message
     pygame.quit()
     sys.exit()
-    
+
 def side_collision_check():
-    for object in objects:
-        if player.rect().colliderect(object.rect()) and noclip == False:
-            return True
-            
+    if player.noclip == False:
+        for object in objects:
+            if player.rect().colliderect(object.rect()):
+                return True
+
 def get_screen_ratio():
         screen_size = pygame.display.get_window_size()
         screen_width = screen_size[0]
         screen_height = screen_size[1]
         ratio = (screen_width / 512 + screen_height / 288) / 2
         return ratio
+
 def get_screen_ratio_exact():
         screen_size = pygame.display.get_window_size()
         return [screen_size[0] / 512, screen_size[1] / 288]
@@ -28,6 +54,12 @@ def get_screen_ratio_exact():
 def wcoords_translate(x, y):
     return [(camera.wcoord_x * -1 + x) * 32 * get_screen_ratio() , (camera.wcoord_y + y * -1) * 32 * get_screen_ratio()]
 
+def chunk_translate(x, y):
+    return [math.floor(x / 16), math.floor(y / 16)]
+
+# =========================
+# Classes
+# =========================
 class Entity:
     def __init__(self, name, x, y, texture_path, scale_factor, width, height):
         self.name = name
@@ -35,22 +67,24 @@ class Entity:
         self.y = y
         self.y_velocity = 0
         self.jumping = False
+        self.noclip = False
         self.width = width
         self.height = height
         self.texture = pygame.image.load(texture_path)
         self.texture = pygame.transform.scale_by(self.texture, scale_factor)
     def scoords(self):
         return wcoords_translate(self.x, self.y)
+    def chunk(self):
+        return chunk_translate(self.x, self.y)
     def rect(self):
         return pygame.Rect(self.scoords(), (self.width, self.height))
 
-
 class Environment:
-    def __init__(self, x, y, texture_path, scale_factor):
+    def __init__(self, x, y, texture):
         self.x = x
         self.y = y
-        self.texture = pygame.image.load(texture_path)
-        self.texture = pygame.transform.scale_by(self.texture, scale_factor)
+        self.texture = texture
+        self.texture = pygame.transform.scale_by(self.texture, get_screen_ratio())
         self.width = self.texture.get_size()[0]
         self.height = self.texture.get_size()[1]
     def scoords(self):
@@ -60,126 +94,109 @@ class Environment:
 
 class Camera:
     def __init__(self):
-        self.wcoord_x = -8
-        self.wcoord_y = 7
+        self.wcoord_x = 0
+        self.wcoord_y = 13
+    def update(self):
+        self.wcoord_x = player.x - ((pygame.display.get_window_size()[0] / 64 / get_screen_ratio()) - 0.5)
+        self.wcoord_y = player.y + ((pygame.display.get_window_size()[1] / 64 / get_screen_ratio()) + 0.5)
 
+# =========================
+# Variables & Constants
+# =========================
 pygame.init()
 screen = pygame.display.set_mode((1280, 720))
-clock = pygame.time.Clock()
-running = True
-now = datetime.datetime.now() # set variable now to time
-
-
-print(get_screen_ratio())
-
 pygame.display.set_caption("PhantomSprinter") # set window title
-
-# asset setup
-font = pygame.font.Font("assets/font/Saira_Stencil/static/SairaStencil-SemiBold.ttf", 50)
+clock = pygame.time.Clock()
+now = datetime.datetime.now() # set variable now to time
+running = True
 debug = False
-noclip = False
 
-# class setup:
-ground = Environment(-6, 0, "assets/debug/floor.png", get_screen_ratio())
-box2x = Environment(1, 2, "assets/debug/box2x.png", get_screen_ratio())
-box = Environment(-2, 3.5, "assets/debug/box.png", get_screen_ratio())
+# =========================
+# Game Objects
+# =========================
+assets = {
+    "font": pygame.font.Font("assets/font/Saira_Stencil/static/SairaStencil-SemiBold.ttf", 50),
+    "debug_ground": pygame.image.load("assets/debug/floor.png"),
+    "box2x": pygame.image.load("assets/debug/box2x.png"),
+    "box": pygame.image.load("assets/debug/box.png")
+}
 
-player = Entity("hanspeter", -0.5, 3, "assets/debug/player.png", get_screen_ratio(), 32 * get_screen_ratio(), 64 * get_screen_ratio())
+player = Entity("hanspeter", 8, 8, "assets/debug/player.png", get_screen_ratio(), 32 * get_screen_ratio(), 64 * get_screen_ratio())
 camera = Camera()
 
+objects = []
+new_chunks = []
+loaded_chunks = []
 
-
-
+# =========================
+# Game Loop
+# =========================
 while True:
-    
-    # poll for events
-    # pygame.QUIT event means the user clicked X to close your window
+
+    # INPUT
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             exit()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_F3:
-                if debug == True:
-                    debug = False
-                elif debug == False:
-                    debug = True
+                debug = not debug
             if event.key == pygame.K_F4:
-                if noclip == True:
-                    noclip = False
-                elif noclip == False:
-                    noclip = True
-                    player.standing = False
-    if player.y < -25:
-        exit()
+                player.noclip = not player.noclip
     
-    objects = [ground, box, box2x]
-
     key_pressed=pygame.key.get_pressed()
     if key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
         if side_collision_check():
             player.x -= 0.1
-
     if key_pressed[pygame.K_LEFT]:
         player.x -= 0.1
         if side_collision_check():
             player.x += 0.1
-    if noclip == True:
+    if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
+        player.jumping = True
+        player.y_velocity = 0.25
+    if player.noclip == True:
         if key_pressed[pygame.K_UP]:
-            player.y += 0.2
+            player.y += 0.1
         if key_pressed[pygame.K_DOWN]:
-            player.y -= 0.2
-    else:
-        if key_pressed[pygame.K_UP] and player.jumping == False:
-            player.jumping = True
-            player.y_velocity = 0.25
+            player.y -= 0.1
     
-    
-    # print (objects_rect)
-    
-
-    camera.wcoord_x = player.x - ((pygame.display.get_window_size()[0] / 64 / get_screen_ratio()) - 0.5)
-    camera.wcoord_y = player.y + ((pygame.display.get_window_size()[1] / 64 / get_screen_ratio()) + 0.5)
-    # camera.wcoord_x = -7 #static camera
-    # camera.wcoord_y = 5 
-    # fill the screen with a color to wipe away anything from last frame
+    # DEBUG
+    if player.y < -25:
+        exit()
     screen.fill("purple")
-    debug_menu = font.render(f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}", True, "red")
+    debug_menu = assets["font"].render(f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}", True, "red")
 
-    
-    for object in objects:
-        if not player.rect().colliderect(object.rect()) and noclip == False or player.jumping == True and noclip == False:
-            player.y += player.y_velocity * (1 / len(objects))
-        if player.rect().colliderect(object.rect()) and noclip == False and player.y_velocity < 0:
-            player.jumping = False
-            player.y_velocity = 0
-            player.y = object.y + player.height / (32 * get_screen_ratio())
-        elif player.rect().colliderect(object.rect()) and noclip == False and player.y_velocity > 0:
-            player.y_velocity = 0
-            player.y = object.y - object.height / (32 * get_screen_ratio())
-        else:
-            if player.y_velocity > -1:
-                player.y_velocity -= 0.01 * (1 / len(objects))
-            
-    # if player.rect().colliderect(ground.rect()) == -1 and noclip == False or player.jumping == True and noclip == False:
-    #     player.y += player.y_velocity
-    #     if player.rect().colliderect(ground.rect()) > -1 and noclip == False:
-    #         player.jumping = False
-    #         player.y_velocity = 0
-    #         player.y = ground.y + player.height / (32 * get_screen_ratio())
-    #     elif player.y_velocity > -1:
-    #             player.y_velocity -= 0.01
-    #print(objects_rect[player.rect().collidelist(objects_rect)])
+    # UPDATE CHUNKS
+    update_loaded_chunks()
 
-    # RENDER YOUR GAME HERE
+    # COLLISIONS
+    if player.noclip == False:
+        for object in objects:
+            if not player.rect().colliderect(object.rect()) or player.jumping:
+                player.y += player.y_velocity * (1 / len(objects))
+            if player.rect().colliderect(object.rect()) and player.y_velocity < 0: #fall collision
+                player.jumping = False
+                player.y_velocity = 0
+                player.y = object.y + player.height / (32 * get_screen_ratio())
+            elif player.rect().colliderect(object.rect()) and player.y_velocity > 0: #head hitting
+                player.y_velocity = 0
+                player.y = object.y - object.height / (32 * get_screen_ratio())
+            else:
+                if player.y_velocity > -1:
+                    player.y_velocity -= 0.01 * (1 / len(objects))
+
+    # UPDATE CAMERA
+    camera.update() # remove for static cam        
+
+    # RENDERING
     if debug == True:
         screen.blit(debug_menu, (0,0))
-    screen.blit(ground.texture, (ground.scoords()))
-    screen.blit(box2x.texture, (box2x.scoords()))
-    screen.blit(box.texture, (box.scoords()))
+    for object in objects:
+        screen.blit(object.texture, (object.scoords()))
     screen.blit(player.texture, (player.scoords()))
 
     # flip() the display to put your work on screen
     pygame.display.flip()
-    clock.tick(60)  # limits FPS to 60
 
+    clock.tick(60)  # limits FPS to 60
