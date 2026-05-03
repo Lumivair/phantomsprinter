@@ -27,18 +27,25 @@ def update_loaded_chunks():
                         objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], assets[line[0]]))
                 new_chunks = []
             except FileNotFoundError:
-                print("empty chunk load")
+                pass
             
 def exit():
     print(now.strftime("%y-%m-%d %H:%M:%S:"),"Game successfully closed") # exit with success message
     pygame.quit()
     sys.exit()
 
-def side_collision_check():
+def horizontal_collision_check():
     if player.noclip == False:
         for object in objects:
             if player.rect().colliderect(object.rect()):
                 return True
+
+def vertical_collision_check():
+    for object in objects:
+        if player.rect().colliderect(object.rect()):
+            global vertical_collide_object
+            vertical_collide_object = object
+            return True
 
 def get_screen_ratio():
         screen_size = pygame.display.get_window_size()
@@ -77,7 +84,8 @@ class Entity:
     def chunk(self):
         return chunk_translate(self.x, self.y)
     def rect(self):
-        return pygame.Rect(self.scoords(), (self.width, self.height))
+        # return pygame.Rect(self.scoords(), (self.width, self.height)) # causes vibrations, maybe fix in future for custom hitbox?
+        return self.texture.get_rect(topleft=(self.scoords()))
 
 class Environment:
     def __init__(self, x, y, texture):
@@ -123,7 +131,6 @@ assets = {
 
 player = Entity("hanspeter", 8, 8, "assets/debug/player.png", get_screen_ratio(), 32 * get_screen_ratio(), 64 * get_screen_ratio())
 camera = Camera()
-
 objects = []
 new_chunks = []
 loaded_chunks = []
@@ -146,11 +153,11 @@ while True:
     key_pressed=pygame.key.get_pressed()
     if key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
-        if side_collision_check():
+        if horizontal_collision_check():
             player.x -= 0.1
     if key_pressed[pygame.K_LEFT]:
         player.x -= 0.1
-        if side_collision_check():
+        if horizontal_collision_check():
             player.x += 0.1
     if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
         player.jumping = True
@@ -172,19 +179,18 @@ while True:
 
     # COLLISIONS
     if player.noclip == False:
-        for object in objects:
-            if not player.rect().colliderect(object.rect()) or player.jumping:
-                player.y += player.y_velocity * (1 / len(objects))
-            if player.rect().colliderect(object.rect()) and player.y_velocity < 0: #fall collision
+        player.y += player.y_velocity
+        if vertical_collision_check() == True:
+            if player.y_velocity < 0: #fall collision
                 player.jumping = False
-                player.y_velocity = 0
-                player.y = object.y + player.height / (32 * get_screen_ratio())
-            elif player.rect().colliderect(object.rect()) and player.y_velocity > 0: #head hitting
-                player.y_velocity = 0
-                player.y = object.y - object.height / (32 * get_screen_ratio())
-            else:
-                if player.y_velocity > -1:
-                    player.y_velocity -= 0.01 * (1 / len(objects))
+                player.y = vertical_collide_object.y + player.height / (32 * get_screen_ratio())
+            elif player.y_velocity > 0: #head hitting
+                player.y = vertical_collide_object.y - vertical_collide_object.height / (32 * get_screen_ratio())
+            player.y_velocity = 0
+        else:
+            if player.y_velocity > -1:
+                player.y_velocity -= 0.01
+                player.jumping = True
 
     # UPDATE CAMERA
     camera.update() # remove for static cam        
@@ -199,4 +205,4 @@ while True:
     # flip() the display to put your work on screen
     pygame.display.flip()
 
-    clock.tick(60)  # limits FPS to 60
+    clock.tick(60)
