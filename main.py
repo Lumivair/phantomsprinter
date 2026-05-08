@@ -106,7 +106,7 @@ class Camera:
         self.wcoord_y = 13
     def update(self):
         self.wcoord_x = player.x - ((pygame.display.get_window_size()[0] / 64 / get_screen_ratio()) - 0.5)
-        self.wcoord_y = player.y + ((pygame.display.get_window_size()[1] / 64 / get_screen_ratio()) + 0.5)
+        self.wcoord_y = player.y + ((pygame.display.get_window_size()[1] / 64 / get_screen_ratio()) - 0.5)
 
 # =========================
 # Variables & Constants
