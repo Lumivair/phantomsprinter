@@ -74,7 +74,7 @@ class Entity:
         self.y = y
         self.y_velocity = 0
         self.jumping = False
-        self.noclip = False
+        self.noclip = True
         self.width = width
         self.height = height
         self.texture = pygame.image.load(texture_path)
@@ -207,11 +207,11 @@ while True:
     for object in objects:
         screen.blit(object.texture, (object.scoords()))
     screen.blit(player.texture, (player.scoords()))
-    if debug == True:
-        for line in debug_menu:
-            screen.blit(assets["font"].render(line, True, "red"), (0, debug_menu.index(line) * 60))
+    # if debug == True:
+    #     for line in debug_menu:
+    #         screen.blit(assets["font"].render(line, True, "red"), (0, debug_menu.index(line) * 60))
     # flip() the display to put your work on screen
     pygame.display.flip()
 
-    clock.tick_busy_loop()
+    clock.tick_busy_loop(100)
     # clock.tick(60)
