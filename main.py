@@ -117,7 +117,6 @@ pygame.display.set_caption("PhantomSprinter") # set window title
 pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
-running = True
 debug = False
 
 # =========================
