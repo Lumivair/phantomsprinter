@@ -212,5 +212,5 @@ while True:
     # flip() the display to put your work on screen
     pygame.display.flip()
 
-    clock.tick_busy_loop(100)
+    clock.tick_busy_loop()
     # clock.tick(60)

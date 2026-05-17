@@ -14,8 +14,7 @@ def exit():
     print(now.strftime("%y-%m-%d %H:%M:%S:"),"Game successfully closed") # exit with success message
     pygame.quit()
     sys.exit()
-# def timer(amount):
-#     amount - dt
+
 def set_screen_ratio():
         global screen_ratio
         screen_size = pygame.display.get_window_size()
@@ -27,9 +26,63 @@ def set_screen_ratio():
 def wcoords_translate(x, y):
     return[(x - camera.wcoord_x) * screen_ratio[0] - 1, (y - camera.wcoord_y) * screen_ratio[1] + 1]
 
+def chunk_translate(x, y):
+    return [math.floor(x / 16), math.floor(y / 16)]
+
+def update_loaded_chunks():
+    new_chunks = []
+    new_chunks.append(player.chunk())
+    new_chunks.append([player.chunk()[0] + 1, player.chunk()[1]])
+    new_chunks.append([player.chunk()[0] -1 , player.chunk()[1]]) # FIX if bored, make it smarter and not just all chunks next to player
+    # print("new:", new_chunks)
+    # print("loaded:", loaded_chunks)
+    for chunk in new_chunks:
+        if chunk not in loaded_chunks:
+            loaded_chunks.append(chunk)
+            try: 
+                with open(f"level/1/{chunk[0]}.{chunk[1]}.pms") as level:
+                    for line in level:
+                        line = line.strip()
+                        line = line.split()
+                        objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]]))
+                        # for object in objects:
+                        #     print(object.x, object.y, object.texture.width, object.texture.texture)
+                new_chunks = []
+            except FileNotFoundError:
+                pass
+
+def texture_load():
+    for texture in assets:
+        textures.update({texture : AssetManager(assets[texture])})
+
 # =========================
 # Classes
 # =========================
+class AssetManager:
+    def __init__(self, texture_path):
+        with Image.open(texture_path) as image:
+            self.texture = image.convert("RGBA")
+            self.width = self.texture.size[0]
+            self.height = self.texture.size[1]
+        self.texture_raw = ctx.texture((self.width, self.height), 4, self.texture.tobytes())
+        self.texture_raw.filter = (ctx.NEAREST, ctx.NEAREST)
+    def bind(self):
+        self.texture_raw.use(location=2)
+
+
+class Environment:
+    def __init__(self, x, y, texture):
+        self.x = x
+        self.y = y
+        self.width = texture.width / 32
+        self.height = texture.height / 32
+        self.texture = texture
+    def scoords(self):
+        return wcoords_translate(self.x, self.y)
+    def rect(self):
+        pass # WIP
+        # return self.texture.get_rect(topleft=(self.scoords()))
+
 class Entity:
     def __init__(self, name, x, y, texture_path, width, height):
         self.name = name
@@ -118,7 +171,7 @@ class Debug:
         return [
             f"FPS: {round(self.fps)}",
             f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}",
-            # f"CHUNK: {str(player.chunk())}"
+            f"CHUNK: {str(player.chunk())}",
                   ]
 
 class Timer:
@@ -141,7 +194,7 @@ class Timer:
 
 
 # =========================
-# Variables & Constants
+# Variables, Constants &  & Game Init
 # =========================
 pygame.init()
 
@@ -157,17 +210,33 @@ clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
 debug_timer = Timer(0.1)
 
+
+
 # =========================
 # Game Objects
 # =========================
+assets = {
+    "debug_ground": "assets/debug/floor.png",
+    "box2x": "assets/debug/box2x.png",
+    "box": "assets/debug/box.png",
+    "floor": "assets/environment/floors/floor1.png",
+    "wall1": "assets/environment/walls/wall1.png",
+    "wall2": "assets/environment/walls/wall2.png"
+}
+textures = {}
+texture_load()
+
 camera = Camera()
-player = Entity("hanspeter", 0, 0, "assets/debug/player.png", screen_ratio[0], screen_ratio[1] * 2)
+player = Entity("hanspeter", 8, 8, "assets/debug/player.png", screen_ratio[0], screen_ratio[1] * 2)
 debug = Debug()
+objects = []
+new_chunks = []
+loaded_chunks = []
 
 # =========================
 # OpenGL
 # =========================
-program = ctx.program(
+entity_program = ctx.program(
     vertex_shader='''
     #version 330 core
     in vec3 vector;
@@ -188,12 +257,47 @@ program = ctx.program(
     Colour = texture(tex, v_uv);
     }
     ''',
-
 )
 
-vbo = ctx.buffer(data=player.vertex)
-vao = ctx.vertex_array(program, [(vbo, '3f 2f', 'vector', 'uv')])
-program["tex"] = 0
+player_vbo = ctx.buffer(data=player.vertex)
+player_vao = ctx.vertex_array(entity_program, [(player_vbo, '3f 2f', 'vector', 'uv')])
+entity_program["tex"] = 0
+################################
+
+environment_vertex = np.array([  0.0, 0.0, 0, 1, #topleft
+                                 0.0,-1.0, 0, 0, #bottomleft
+                                 1.0, 0.0, 1, 1, #topright
+                                 1.0,-1.0, 1, 0, #bottomright
+                                #x, y, u = width, v = height
+                                ], dtype='f4')
+
+environment_program = ctx.program(
+    vertex_shader='''
+    #version 330 core
+    in vec2 position;
+    in vec2 uv;
+    out vec2 v_uv;
+    uniform mat4 transform_matrix;
+    void main() {
+    gl_Position = transform_matrix * vec4(position, 0.0, 1.0);
+    v_uv = uv;
+    }
+    ''',
+    fragment_shader='''
+    #version 330 core
+    in vec2 v_uv;
+    out vec4 Colour;
+    uniform sampler2D env_tex;
+    void main() {
+    Colour = texture(env_tex, v_uv);
+    }
+    ''',
+)
+
+environment_vbo = ctx.buffer(data=environment_vertex)
+environment_vao = ctx.vertex_array(environment_program, [(environment_vbo, '2f 2f', 'position', 'uv')])
+environment_program["env_tex"] = 2
+
 
 # =========================
 # Game Loop
@@ -227,16 +331,32 @@ while True:
     if player.y < -25:
         exit()
    
+    # UPDATE CHUNKS
+    update_loaded_chunks()
 
     # UPDATE CAMERA
     camera.update() # remove for static cam
     # UPDATE PLAYER
-    program['player_position'].value = [player.scoords()[0], player.scoords()[1], 0]
+    entity_program["player_position"].value = [player.scoords()[0], player.scoords()[1], 0]
 
 
     # RENDERING
     ctx.clear(0.5, 0, 0.5)
-    vao.render(mode=moderngl.TRIANGLE_STRIP)
+    player_vao.render(mode=moderngl.TRIANGLE_STRIP)
+    
+    #env test
+    for object in objects:
+        object.texture.bind()
+        print(object.texture.texture, object.scoords(), object.width, screen_ratio)
+        environment_program["transform_matrix"].value = np.array([  (object.width * screen_ratio[0]), 0.0, 0.0, 0.0,
+                                                                    0.0, (object.height * screen_ratio[1]), 0.0, 0.0,
+                                                                    0.0, 0.0, 1.0, 0.0,
+                                                                    object.scoords()[0], object.scoords()[1], 0.0, 1.0,
+                                                                    ], dtype='f4')
+        environment_vao.render(mode=moderngl.TRIANGLE_STRIP)
+    
+
+
 
     debug.update()
   
