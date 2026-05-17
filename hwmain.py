@@ -6,7 +6,6 @@ import math
 import datetime
 from PIL import Image
 
-
 # =========================
 # Functions
 # =========================
@@ -17,11 +16,13 @@ def exit():
 
 def set_screen_ratio():
         global screen_ratio
+        global camera_ratio
         screen_size = pygame.display.get_window_size()
         screen_width = screen_size[0]
         screen_height = screen_size[1]
         ratio_multiplier = math.sqrt(144/(screen_width * screen_height))
         screen_ratio = [(1 / (screen_width * ratio_multiplier) * 2), (1 / (screen_height * ratio_multiplier) * 2)]
+        camera_ratio = [(screen_width * ratio_multiplier) / 2 - 0.5, (screen_height * ratio_multiplier) / 2 + 0.5]
 
 def wcoords_translate(x, y):
     return[(x - camera.wcoord_x) * screen_ratio[0] - 1, (y - camera.wcoord_y) * screen_ratio[1] + 1]
@@ -69,7 +70,6 @@ class AssetManager:
     def bind(self):
         self.texture_raw.use(location=2)
 
-
 class Environment:
     def __init__(self, x, y, texture):
         self.x = x
@@ -116,8 +116,8 @@ class Camera:
         self.wcoord_x = 0
         self.wcoord_y = 0
     def update(self):
-        self.wcoord_x = player.x - 5
-        self.wcoord_y = player.y + 4
+        self.wcoord_x = player.x - camera_ratio[0]
+        self.wcoord_y = player.y + camera_ratio[1]
 
 class Debug:
     def __init__(self):
@@ -192,14 +192,13 @@ class Timer:
             print("An unknown error ocurred")
             exit()
 
-
 # =========================
 # Variables, Constants &  & Game Init
 # =========================
 pygame.init()
 
 pygame.display.set_mode(
-    (1280, 720),
+    (2560, 500),
     pygame.OPENGL | pygame.DOUBLEBUF
 )
 ctx = moderngl.create_context()
@@ -209,8 +208,6 @@ set_screen_ratio()
 clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
 debug_timer = Timer(0.1)
-
-
 
 # =========================
 # Game Objects
@@ -262,7 +259,6 @@ entity_program = ctx.program(
 player_vbo = ctx.buffer(data=player.vertex)
 player_vao = ctx.vertex_array(entity_program, [(player_vbo, '3f 2f', 'vector', 'uv')])
 entity_program["tex"] = 0
-################################
 
 environment_vertex = np.array([  0.0, 0.0, 0, 1, #topleft
                                  0.0,-1.0, 0, 0, #bottomleft
@@ -297,7 +293,6 @@ environment_program = ctx.program(
 environment_vbo = ctx.buffer(data=environment_vertex)
 environment_vao = ctx.vertex_array(environment_program, [(environment_vbo, '2f 2f', 'position', 'uv')])
 environment_program["env_tex"] = 2
-
 
 # =========================
 # Game Loop
@@ -339,15 +334,13 @@ while True:
     # UPDATE PLAYER
     entity_program["player_position"].value = [player.scoords()[0], player.scoords()[1], 0]
 
-
     # RENDERING
     ctx.clear(0.5, 0, 0.5)
     player_vao.render(mode=moderngl.TRIANGLE_STRIP)
     
-    #env test
+    # to be improved:
     for object in objects:
         object.texture.bind()
-        print(object.texture.texture, object.scoords(), object.width, screen_ratio)
         environment_program["transform_matrix"].value = np.array([  (object.width * screen_ratio[0]), 0.0, 0.0, 0.0,
                                                                     0.0, (object.height * screen_ratio[1]), 0.0, 0.0,
                                                                     0.0, 0.0, 1.0, 0.0,
@@ -355,16 +348,6 @@ while True:
                                                                     ], dtype='f4')
         environment_vao.render(mode=moderngl.TRIANGLE_STRIP)
     
-
-
-
     debug.update()
-  
-
     pygame.display.flip()
-
     dt = clock.tick_busy_loop(60) / 1000 # dt is time it takes for one frame
-    #print(dt)
-    #print(f"fps: {clock.get_fps()}")
-    
-    
