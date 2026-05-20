@@ -107,9 +107,11 @@ class Entity:
         return wcoords_translate(self.x, self.y)
     def chunk(self):
         return chunk_translate(self.x, self.y)
-    def rect(self):
-        # return pygame.Rect(self.scoords(), (self.width, self.height)) # causes vibrations, maybe fix in future for custom hitbox?
-        return self.texture.get_rect(topleft=(self.scoords()))
+    def collide(self):
+        for object in objects:
+            if self.x > object.x - 1 and self.x < object.x + object.width and self.y < object.y + 2 and self.y > object.y - object.height:
+                return [True, object]
+        return [False, None]
 
 class Camera:
     def __init__(self):
@@ -198,7 +200,7 @@ class Timer:
 pygame.init()
 
 pygame.display.set_mode(
-    (2560, 500),
+    (1280, 720),
     pygame.OPENGL | pygame.DOUBLEBUF
 )
 ctx = moderngl.create_context()
@@ -311,8 +313,13 @@ while True:
     key_pressed=pygame.key.get_pressed()
     if key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
+        if player.collide()[0] and not player.noclip:
+            player.x -= 0.1
     if key_pressed[pygame.K_LEFT]:
         player.x -= 0.1
+        if player.collide()[0] and not player.noclip:
+            player.x += 0.1
+
     if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
         player.jumping = True
         player.y_velocity = 0.25
@@ -328,6 +335,21 @@ while True:
    
     # UPDATE CHUNKS
     update_loaded_chunks()
+
+    # COLLISIONS
+    if player.noclip == False:
+        player.y += player.y_velocity
+        if player.collide()[0] == True:
+            if player.y_velocity < 0: #fall collision
+                player.jumping = False
+                player.y = player.collide()[1].y + 2
+            elif player.y_velocity > 0: #head hitting
+                player.y = player.collide()[1].y - player.collide()[1].height
+            player.y_velocity = 0
+        else:
+            if player.y_velocity > -1:
+                player.y_velocity -= 0.01
+                player.jumping = True
 
     # UPDATE CAMERA
     camera.update() # remove for static cam
