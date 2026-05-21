@@ -74,7 +74,7 @@ class Entity:
         self.y = y
         self.y_velocity = 0
         self.jumping = False
-        self.noclip = True
+        self.noclip = False
         self.width = width
         self.height = height
         self.texture = pygame.image.load(texture_path)
@@ -106,7 +106,7 @@ class Camera:
         self.wcoord_y = 13
     def update(self):
         self.wcoord_x = player.x - ((pygame.display.get_window_size()[0] / 64 / get_screen_ratio()) - 0.5)
-        self.wcoord_y = player.y + ((pygame.display.get_window_size()[1] / 64 / get_screen_ratio()) - 0.5)
+        self.wcoord_y = player.y + ((pygame.display.get_window_size()[1] / 64 / get_screen_ratio()) + 0.5)
 
 # =========================
 # Variables & Constants
@@ -117,6 +117,7 @@ pygame.display.set_caption("PhantomSprinter") # set window title
 pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
+running = True
 debug = False
 
 # =========================
@@ -206,11 +207,11 @@ while True:
     for object in objects:
         screen.blit(object.texture, (object.scoords()))
     screen.blit(player.texture, (player.scoords()))
-    # if debug == True:
-    #     for line in debug_menu:
-    #         screen.blit(assets["font"].render(line, True, "red"), (0, debug_menu.index(line) * 60))
+    if debug == True:
+        for line in debug_menu:
+            screen.blit(assets["font"].render(line, True, "red"), (0, debug_menu.index(line) * 60))
     # flip() the display to put your work on screen
     pygame.display.flip()
 
-    clock.tick_busy_loop()
+    clock.tick_busy_loop(60)
     # clock.tick(60)
