@@ -74,7 +74,7 @@ class Entity:
         self.y = y
         self.y_velocity = 0
         self.jumping = False
-        self.noclip = False
+        self.noclip = True
         self.width = width
         self.height = height
         self.texture = pygame.image.load(texture_path)
@@ -117,7 +117,6 @@ pygame.display.set_caption("PhantomSprinter") # set window title
 pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
-running = True
 debug = False
 
 # =========================
@@ -127,7 +126,10 @@ assets = {
     "font": pygame.font.Font("assets/font/Saira_Stencil/static/SairaStencil-SemiBold.ttf", 50),
     "debug_ground": pygame.image.load("assets/debug/floor.png"),
     "box2x": pygame.image.load("assets/debug/box2x.png"),
-    "box": pygame.image.load("assets/debug/box.png")
+    "box": pygame.image.load("assets/debug/box.png"),
+    "floor": pygame.image.load("assets/environment/floors/floor1.png"),
+    "wall1": pygame.image.load("assets/environment/walls/wall1.png"),
+    "wall2": pygame.image.load("assets/environment/walls/wall2.png")
 }
 
 player = Entity("hanspeter", 8, 8, "assets/debug/player.png", get_screen_ratio(), 32 * get_screen_ratio(), 64 * get_screen_ratio())
@@ -174,8 +176,9 @@ while True:
         exit()
     screen.fill("purple")
     debug_menu = [
+        f"FPS: {clock.get_fps()}",
         f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}",
-        f"Chunk: {str(player.chunk())}"
+        f"CHUNK: {str(player.chunk())}"
                   ]
 
     # UPDATE CHUNKS
@@ -198,15 +201,16 @@ while True:
 
     # UPDATE CAMERA
     camera.update() # remove for static cam        
-
     # RENDERING
+    print(clock.get_fps())
     for object in objects:
         screen.blit(object.texture, (object.scoords()))
     screen.blit(player.texture, (player.scoords()))
-    if debug == True:
-        for line in debug_menu:
-            screen.blit(assets["font"].render(line, True, "red"), (0, debug_menu.index(line) * 60))
+    # if debug == True:
+    #     for line in debug_menu:
+    #         screen.blit(assets["font"].render(line, True, "red"), (0, debug_menu.index(line) * 60))
     # flip() the display to put your work on screen
     pygame.display.flip()
 
-    clock.tick(60)
+    clock.tick_busy_loop()
+    # clock.tick(60)
