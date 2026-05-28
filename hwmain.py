@@ -79,9 +79,6 @@ class Environment:
         self.texture = texture
     def scoords(self):
         return wcoords_translate(self.x, self.y)
-    def rect(self):
-        pass # WIP
-        # return self.texture.get_rect(topleft=(self.scoords()))
 
 class Entity:
     def __init__(self, name, x, y, texture_path, width, height):
@@ -90,7 +87,7 @@ class Entity:
         self.y = y
         self.y_velocity = 0
         self.jumping = False
-        self.noclip = True
+        self.noclip = False
         self.width = width
         self.height = height
         self.texture = Image.open(texture_path).convert("RGBA")
@@ -172,7 +169,7 @@ class Debug:
     def menu(self):
         return [
             f"FPS: {round(self.fps)}",
-            f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}",
+            f"X: {round(player.x, 3)}    Y: {round(player.y, 3)}",
             f"CHUNK: {str(player.chunk())}",
                   ]
 
@@ -207,6 +204,7 @@ ctx = moderngl.create_context()
 ctx.enable(moderngl.BLEND) # add transparancy
 
 set_screen_ratio()
+pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
 debug_timer = Timer(0.1)
@@ -218,9 +216,10 @@ assets = {
     "debug_ground": "assets/debug/floor.png",
     "box2x": "assets/debug/box2x.png",
     "box": "assets/debug/box.png",
+    "compass": "assets/debug/compass.png",
     "floor": "assets/environment/floors/floor1.png",
     "wall1": "assets/environment/walls/wall1.png",
-    "wall2": "assets/environment/walls/wall2.png"
+    "wall2": "assets/environment/walls/wall2.png",
 }
 textures = {}
 texture_load()
@@ -262,10 +261,10 @@ player_vbo = ctx.buffer(data=player.vertex)
 player_vao = ctx.vertex_array(entity_program, [(player_vbo, '3f 2f', 'vector', 'uv')])
 entity_program["tex"] = 0
 
-environment_vertex = np.array([  0.0, 0.0, 0, 1, #topleft
-                                 0.0,-1.0, 0, 0, #bottomleft
-                                 1.0, 0.0, 1, 1, #topright
-                                 1.0,-1.0, 1, 0, #bottomright
+environment_vertex = np.array([  0.0, 0.0, 0, 0, #topleft
+                                 0.0,-1.0, 0, 1, #bottomleft
+                                 1.0, 0.0, 1, 0, #topright
+                                 1.0,-1.0, 1, 1, #bottomright
                                 #x, y, u = width, v = height
                                 ], dtype='f4')
 
@@ -314,11 +313,11 @@ while True:
     if key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
         if player.collide()[0] and not player.noclip:
-            player.x -= 0.1
+            player.x = player.collide()[1].x - 1
     if key_pressed[pygame.K_LEFT]:
         player.x -= 0.1
         if player.collide()[0] and not player.noclip:
-            player.x += 0.1
+            player.x = player.collide()[1].x + player.collide()[1].width
 
     if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
         player.jumping = True

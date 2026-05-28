@@ -130,7 +130,8 @@ assets = {
     "box": pygame.image.load("assets/debug/box.png"),
     "floor": pygame.image.load("assets/environment/floors/floor1.png"),
     "wall1": pygame.image.load("assets/environment/walls/wall1.png"),
-    "wall2": pygame.image.load("assets/environment/walls/wall2.png")
+    "wall2": pygame.image.load("assets/environment/walls/wall2.png"),
+    "compass": pygame.image.load("assets/debug/compass.png")
 }
 
 player = Entity("hanspeter", 8, 8, "assets/debug/player.png", get_screen_ratio(), 32 * get_screen_ratio(), 64 * get_screen_ratio())
