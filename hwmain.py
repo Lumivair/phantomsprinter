@@ -45,9 +45,8 @@ def update_loaded_chunks():
                     for line in level:
                         line = line.strip()
                         line = line.split()
-                        objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]]))
-                        # for object in objects:
-                        #     print(object.x, object.y, object.texture.width, object.texture.texture)
+                        collision_objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]]))
+
                 new_chunks = []
             except FileNotFoundError:
                 pass
@@ -55,6 +54,7 @@ def update_loaded_chunks():
 def texture_load():
     for texture in assets:
         textures.update({texture : AssetManager(assets[texture])})
+        print(textures)
 
 # =========================
 # Classes
@@ -68,7 +68,7 @@ class AssetManager:
         self.texture_raw = ctx.texture((self.width, self.height), 4, self.texture.tobytes())
         self.texture_raw.filter = (ctx.NEAREST, ctx.NEAREST)
     def bind(self):
-        self.texture_raw.use(location=2)
+        self.texture_raw.use(location=0)
 
 class Environment:
     def __init__(self, x, y, texture):
@@ -81,7 +81,7 @@ class Environment:
         return wcoords_translate(self.x, self.y)
 
 class Entity:
-    def __init__(self, name, x, y, texture_path, width, height):
+    def __init__(self, name, x, y, texture, width, height):
         self.name = name
         self.x = x
         self.y = y
@@ -90,22 +90,14 @@ class Entity:
         self.noclip = False
         self.width = width
         self.height = height
-        self.texture = Image.open(texture_path).convert("RGBA")
-        self.texture_raw = ctx.texture((32, 64), 4, self.texture.tobytes())
-        self.texture_raw.filter = (ctx.NEAREST, ctx.NEAREST)
-        self.texture_raw.use(location=0)
-        self.vertex = np.array([0.0,  0.0, 0.0, 0, 1, #topleft
-                                0.0, 0.0 - self.height, 0.0, 0, 0, #bottomleft
-                                self.width, 0.0, 0.0, 1, 1, #topright
-                                self.width,  0.0 - self.height, 0.0, 1, 0, #bottomright
-                                #x, y, z, u = width, v = height
-                                ], dtype='f4')
+        self.texture = texture
+
     def scoords(self):
         return wcoords_translate(self.x, self.y)
     def chunk(self):
         return chunk_translate(self.x, self.y)
     def collide(self):
-        for object in objects:
+        for object in collision_objects:
             if self.x > object.x - 1 and self.x < object.x + object.width and self.y < object.y + 2 and self.y > object.y - object.height:
                 return [True, object]
         return [False, None]
@@ -213,6 +205,7 @@ debug_timer = Timer(0.1)
 # Game Objects
 # =========================
 assets = {
+    "debug_player": "assets/debug/player.png",
     "debug_ground": "assets/debug/floor.png",
     "box2x": "assets/debug/box2x.png",
     "box": "assets/debug/box.png",
@@ -220,55 +213,33 @@ assets = {
     "floor": "assets/environment/floors/floor1.png",
     "wall1": "assets/environment/walls/wall1.png",
     "wall2": "assets/environment/walls/wall2.png",
+    "wall3": "assets/environment/walls/wall3.png",
 }
 textures = {}
 texture_load()
 
 camera = Camera()
-player = Entity("hanspeter", 8, 8, "assets/debug/player.png", screen_ratio[0], screen_ratio[1] * 2)
+player = Entity("hanspeter", 8, 8, textures["debug_player"], 1, 2)
+
 debug = Debug()
-objects = []
+collision_objects = []
+objects = [player]
+
 new_chunks = []
 loaded_chunks = []
 
 # =========================
-# OpenGL
+# OpenGL main renderer
 # =========================
-entity_program = ctx.program(
-    vertex_shader='''
-    #version 330 core
-    in vec3 vector;
-    in vec2 uv;
-    out vec2 v_uv;
-    uniform vec3 player_position;
-    void main() {
-    gl_Position = vec4(vector + player_position, 1.0);
-    v_uv = uv;
-    }
-    ''',
-    fragment_shader='''
-    #version 330 core
-    in vec2 v_uv;
-    out vec4 Colour;
-    uniform sampler2D tex;
-    void main() {
-    Colour = texture(tex, v_uv);
-    }
-    ''',
-)
 
-player_vbo = ctx.buffer(data=player.vertex)
-player_vao = ctx.vertex_array(entity_program, [(player_vbo, '3f 2f', 'vector', 'uv')])
-entity_program["tex"] = 0
+vertex = np.array([ 0.0, 0.0, 0, 0, #topleft
+                    0.0,-1.0, 0, 1, #bottomleft
+                    1.0, 0.0, 1, 0, #topright
+                    1.0,-1.0, 1, 1, #bottomright
+                #x, y, u = width, v = height
+                ], dtype='f4')
 
-environment_vertex = np.array([  0.0, 0.0, 0, 0, #topleft
-                                 0.0,-1.0, 0, 1, #bottomleft
-                                 1.0, 0.0, 1, 0, #topright
-                                 1.0,-1.0, 1, 1, #bottomright
-                                #x, y, u = width, v = height
-                                ], dtype='f4')
-
-environment_program = ctx.program(
+program = ctx.program(
     vertex_shader='''
     #version 330 core
     in vec2 position;
@@ -284,16 +255,16 @@ environment_program = ctx.program(
     #version 330 core
     in vec2 v_uv;
     out vec4 Colour;
-    uniform sampler2D env_tex;
+    uniform sampler2D tex;
     void main() {
-    Colour = texture(env_tex, v_uv);
+    Colour = texture(tex, v_uv);
     }
     ''',
 )
 
-environment_vbo = ctx.buffer(data=environment_vertex)
-environment_vao = ctx.vertex_array(environment_program, [(environment_vbo, '2f 2f', 'position', 'uv')])
-environment_program["env_tex"] = 2
+vbo = ctx.buffer(data=vertex)
+vao = ctx.vertex_array(program, [(vbo, '2f 2f', 'position', 'uv')])
+program["tex"] = 0
 
 # =========================
 # Game Loop
@@ -352,22 +323,18 @@ while True:
 
     # UPDATE CAMERA
     camera.update() # remove for static cam
-    # UPDATE PLAYER
-    entity_program["player_position"].value = [player.scoords()[0], player.scoords()[1], 0]
 
     # RENDERING
     ctx.clear(0.5, 0, 0.5)
-    player_vao.render(mode=moderngl.TRIANGLE_STRIP)
-    
-    # to be improved:
-    for object in objects:
+
+    for object in objects + collision_objects:
         object.texture.bind()
-        environment_program["transform_matrix"].value = np.array([  (object.width * screen_ratio[0]), 0.0, 0.0, 0.0,
+        program["transform_matrix"].value = np.array([              (object.width * screen_ratio[0]), 0.0, 0.0, 0.0,
                                                                     0.0, (object.height * screen_ratio[1]), 0.0, 0.0,
                                                                     0.0, 0.0, 1.0, 0.0,
                                                                     object.scoords()[0], object.scoords()[1], 0.0, 1.0,
                                                                     ], dtype='f4')
-        environment_vao.render(mode=moderngl.TRIANGLE_STRIP)
+        vao.render(mode=moderngl.TRIANGLE_STRIP)
     
     debug.update()
     pygame.display.flip()
