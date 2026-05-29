@@ -214,6 +214,8 @@ assets = {
     "wall1": "assets/environment/walls/wall1.png",
     "wall2": "assets/environment/walls/wall2.png",
     "wall3": "assets/environment/walls/wall3.png",
+    "3x2_a": "assets/environment/platforms/3x2_a.png",
+    "3x2_b": "assets/environment/platforms/3x2_b.png",
 }
 textures = {}
 texture_load()
