@@ -17,6 +17,8 @@ def exit():
 def set_screen_ratio():
         global screen_ratio
         global camera_ratio
+        global screen_width
+        global screen_height
         screen_size = pygame.display.get_window_size()
         screen_width = screen_size[0]
         screen_height = screen_size[1]
@@ -54,7 +56,6 @@ def update_loaded_chunks():
 def texture_load():
     for texture in assets:
         textures.update({texture : AssetManager(assets[texture])})
-        print(textures)
 
 # =========================
 # Classes
@@ -121,8 +122,8 @@ class Debug:
                                  1.0, -1.0, 0.0, 1, 0, #bottomright
                                 #x, y, z, u = width, v = height
                                 ], dtype='f4')
-        self.text_surface = pygame.Surface((pygame.display.get_window_size()), pygame.SRCALPHA)
-        self.texture = ctx.texture(pygame.display.get_window_size(), 4)
+        self.text_surface = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+        self.texture = ctx.texture((screen_width, screen_height), 4)
         self.texture.filter = (ctx.NEAREST, ctx.NEAREST)
         self.texture.use(location=1)
         self.program = ctx.program(
@@ -149,7 +150,7 @@ class Debug:
         self.program["tex"] = 1
         self.vbo = ctx.buffer(data=self.vertex)
         self.vao = ctx.vertex_array(self.program, [(self.vbo, '3f 2f', 'vector', 'uv')])
-    def update(self):
+    def render(self):
         if self.enabled == True:
             if debug_timer.time():
                 self.fps = clock.get_fps()
@@ -183,6 +184,59 @@ class Timer:
             print("An unknown error ocurred")
             exit()
 
+class PostProcessing:
+    def __init__(self):
+        self.quad = np.array([ -1.0, 1.0, 0.0, 1.0, #topleft
+                               -1.0,-1.0, 0.0, 0.0, #bottomleft
+                                1.0, 1.0, 1.0, 1.0, #topright
+                                1.0,-1.0, 1.0, 0.0, #bottomright
+                                #x, y,
+                                ], dtype='f4')
+        self.vbo = ctx.buffer(data=self.quad)
+        self.program = ctx.program(
+            vertex_shader='''
+            #version 330 core
+            in vec2 vector;
+            in vec2 uv;
+            out vec2 v_uv;
+
+            void main() {
+            gl_Position = vec4(vector, 0.0, 1.0);
+            v_uv = uv;
+            }
+            ''',
+            fragment_shader='''
+            #version 330 core
+            uniform vec2 center;
+            uniform float radius;
+            uniform float smoothness;
+            uniform sampler2D tex;
+            in vec2 v_uv;
+            out vec4 fragColor;
+
+            void main() {
+            float dist = distance(gl_FragCoord.xy, center);
+            float noise = fract(sin(dot(gl_FragCoord.xy / dist, vec2(12.9898, 78.233))) * 43758.5453);
+            float alpha = mix(0.0, 1.0, (dist / smoothness)) + (0.005 * noise);
+            vec3 screen_color = texture(tex, v_uv).rgb;
+            vec3 vignette_color = vec3(alpha, alpha, alpha);
+            fragColor = vec4((screen_color - vignette_color), 1.0);
+            }
+            ''',
+            )
+        self.vao = ctx.vertex_array(self.program, [(self.vbo, '2f 2f', 'vector', 'uv')])
+
+    def render(self):
+        ctx.screen.use()
+        fbo.color_attachments[0].use(location=2)
+        self.program['tex'] = 2
+        self.program["center"].value = screen_width / 2, screen_height / 2
+        if screen_width > screen_height:
+            self.program["smoothness"].value = 1.78125 * screen_width
+        else: 
+            self.program["smoothness"].value = 1.78125 * screen_height
+        self.vao.render(mode=moderngl.TRIANGLE_STRIP)
+
 # =========================
 # Variables, Constants &  & Game Init
 # =========================
@@ -194,8 +248,10 @@ pygame.display.set_mode(
 )
 ctx = moderngl.create_context()
 ctx.enable(moderngl.BLEND) # add transparancy
-
 set_screen_ratio()
+fbo = ctx.framebuffer(color_attachments=[ctx.texture((screen_width, screen_height), 4)])
+postprocessing = PostProcessing()
+
 pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
@@ -216,6 +272,7 @@ assets = {
     "wall3": "assets/environment/walls/wall3.png",
     "3x2_a": "assets/environment/platforms/3x2_a.png",
     "3x2_b": "assets/environment/platforms/3x2_b.png",
+    "lamp": "assets/environment/misc/lamp.png",
 }
 textures = {}
 texture_load()
@@ -327,8 +384,8 @@ while True:
     camera.update() # remove for static cam
 
     # RENDERING
+    fbo.use()
     ctx.clear(0.5, 0, 0.5)
-
     for object in objects + collision_objects:
         object.texture.bind()
         program["transform_matrix"].value = np.array([              (object.width * screen_ratio[0]), 0.0, 0.0, 0.0,
@@ -337,7 +394,7 @@ while True:
                                                                     object.scoords()[0], object.scoords()[1], 0.0, 1.0,
                                                                     ], dtype='f4')
         vao.render(mode=moderngl.TRIANGLE_STRIP)
-    
-    debug.update()
+    postprocessing.render()
+    debug.render()
     pygame.display.flip()
     dt = clock.tick_busy_loop(60) / 1000 # dt is time it takes for one frame
