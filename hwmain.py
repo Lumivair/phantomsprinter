@@ -99,7 +99,7 @@ class Entity:
         return chunk_translate(self.x, self.y)
     def collide(self):
         for object in collision_objects:
-            if self.x > object.x - 1 and self.x < object.x + object.width and self.y < object.y + 2 and self.y > object.y - object.height:
+            if self.x > object.x - self.width and self.x < object.x + object.width and self.y < object.y + self.height and self.y > object.y - object.height:
                 return [True, object]
         return [False, None]
 
@@ -263,6 +263,7 @@ debug_timer = Timer(0.1)
 assets = {
     "debug_player": "assets/debug/player.png",
     "debug_ground": "assets/debug/floor.png",
+    "player": "assets/entities/player/static.png",
     "box2x": "assets/debug/box2x.png",
     "box": "assets/debug/box.png",
     "compass": "assets/debug/compass.png",
@@ -272,13 +273,13 @@ assets = {
     "wall3": "assets/environment/walls/wall3.png",
     "3x2_a": "assets/environment/platforms/3x2_a.png",
     "3x2_b": "assets/environment/platforms/3x2_b.png",
-    "lamp": "assets/environment/misc/lamp.png",
+    "lamp": "assets/environment/misc/lamp-spill.png",
 }
 textures = {}
 texture_load()
 
 camera = Camera()
-player = Entity("hanspeter", 8, 8, textures["debug_player"], 1, 2)
+player = Entity("hanspeter", 8, 8, textures["player"], 0.71875, 1.75)
 
 debug = Debug()
 collision_objects = []
@@ -343,7 +344,7 @@ while True:
     if key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
         if player.collide()[0] and not player.noclip:
-            player.x = player.collide()[1].x - 1
+            player.x = player.collide()[1].x - player.width
     if key_pressed[pygame.K_LEFT]:
         player.x -= 0.1
         if player.collide()[0] and not player.noclip:
@@ -371,7 +372,7 @@ while True:
         if player.collide()[0] == True:
             if player.y_velocity < 0: #fall collision
                 player.jumping = False
-                player.y = player.collide()[1].y + 2
+                player.y = player.collide()[1].y + player.height
             elif player.y_velocity > 0: #head hitting
                 player.y = player.collide()[1].y - player.collide()[1].height
             player.y_velocity = 0
