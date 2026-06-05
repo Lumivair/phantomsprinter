@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import math
 import datetime
+import random
 from PIL import Image
 
 # =========================
@@ -78,6 +79,10 @@ class Environment:
         self.width = texture.width / 32
         self.height = texture.height / 32
         self.texture = texture
+        self.uv_x = 1.0
+        self.uv_width = 1.0
+        self.uv_y = 1.0
+        self.uv_height = 1.0
     def scoords(self):
         return wcoords_translate(self.x, self.y)
 
@@ -91,15 +96,49 @@ class Entity:
         self.noclip = False
         self.width = width
         self.height = height
+        self.hitbox_width = width
+        self.hitbox_height = height
         self.texture = texture
+        self.facing = "right"
+        self.frames = 13
+        self.uv_x = 1
+        self.uv_width = 1
+        self.uv_y = 1
+        self.uv_height = 1
+        self.animation = {
+                    #x start, x end, x offset(in world coords), y height, step, frames
+            "static" : (0, 23, 0, 59, 23, 1),
+            "walking" : (67, 871, -0.67, 53, 67, 12)
+        }
+        self.currentanimation = ["static", 1]
+        self.animation_timer = Timer(0.0833333333333)
+    def setuvcoords(self):
+        current_animation_type = self.animation[self.currentanimation[0]]
+        current_animation_frame = self.currentanimation[1]
+        self.uv_x = current_animation_type[0] / self.texture.texture.size[0]
+        self.uv_height = current_animation_type[3] / self.texture.texture.size[1] # change this to uv_y for more accurate and no scaling
+        self.uv_width = current_animation_type[4] / self.texture.texture.size[0]
+        self.width = current_animation_type[4] / 32
+        if player.facing == "left":
+                self.uv_width = self.uv_width * -1
+                self.uv_x = current_animation_type[0] / self.texture.texture.size[0] - self.uv_width
+        if current_animation_type[5] > 1:
+            self.uv_x = (current_animation_type[0] * current_animation_frame) / self.texture.texture.size[0]
+            if current_animation_frame >= 12:
+                self.currentanimation[1] = 1
+            elif self.animation_timer.time():
+                self.currentanimation[1] += 1
+            if player.facing == "left":
+                self.uv_x = (current_animation_type[0] * current_animation_frame) / self.texture.texture.size[0] - self.uv_width
 
     def scoords(self):
-        return wcoords_translate(self.x, self.y)
+        return wcoords_translate(self.x + self.animation[self.currentanimation[0]][2], self.y)
+        
     def chunk(self):
         return chunk_translate(self.x, self.y)
     def collide(self):
         for object in collision_objects:
-            if self.x > object.x - self.width and self.x < object.x + object.width and self.y < object.y + self.height and self.y > object.y - object.height:
+            if self.x > object.x - self.hitbox_width and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
                 return [True, object]
         return [False, None]
 
@@ -264,6 +303,7 @@ assets = {
     "debug_player": "assets/debug/player.png",
     "debug_ground": "assets/debug/floor.png",
     "player": "assets/entities/player/static.png",
+    "player_moving": "assets/entities/player/player_atlas.png",
     "box2x": "assets/debug/box2x.png",
     "box": "assets/debug/box.png",
     "compass": "assets/debug/compass.png",
@@ -279,7 +319,7 @@ textures = {}
 texture_load()
 
 camera = Camera()
-player = Entity("hanspeter", 8, 8, textures["player"], 0.71875, 1.75)
+player = Entity("hanspeter", 8, 8, textures["player_moving"], 0.71875, 1.75)
 
 debug = Debug()
 collision_objects = []
@@ -306,9 +346,10 @@ program = ctx.program(
     in vec2 uv;
     out vec2 v_uv;
     uniform mat4 transform_matrix;
+    uniform mat3 uv_transform_matrix;
     void main() {
     gl_Position = transform_matrix * vec4(position, 0.0, 1.0);
-    v_uv = uv;
+    v_uv = (uv_transform_matrix * vec3(uv, 1.0)).xy;
     }
     ''',
     fragment_shader='''
@@ -330,6 +371,7 @@ program["tex"] = 0
 # Game Loop
 # =========================
 while True:
+    player.currentanimation[0] = "static"
     # INPUT
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -342,13 +384,19 @@ while True:
     
     key_pressed=pygame.key.get_pressed()
     if key_pressed[pygame.K_RIGHT]:
+        player.facing = "right"
         player.x += 0.1
         if player.collide()[0] and not player.noclip:
-            player.x = player.collide()[1].x - player.width
+            player.x = player.collide()[1].x - player.hitbox_width
+        else:
+            player.currentanimation[0] = "walking"
     if key_pressed[pygame.K_LEFT]:
+        player.facing = "left"
         player.x -= 0.1
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[1].x + player.collide()[1].width
+        else:
+            player.currentanimation[0] = "walking"
 
     if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
         player.jumping = True
@@ -362,6 +410,8 @@ while True:
     # DEBUG
     if player.y < -25:
         exit()
+    player.setuvcoords()
+    
    
     # UPDATE CHUNKS
     update_loaded_chunks()
@@ -372,7 +422,7 @@ while True:
         if player.collide()[0] == True:
             if player.y_velocity < 0: #fall collision
                 player.jumping = False
-                player.y = player.collide()[1].y + player.height
+                player.y = player.collide()[1].y + player.hitbox_height
             elif player.y_velocity > 0: #head hitting
                 player.y = player.collide()[1].y - player.collide()[1].height
             player.y_velocity = 0
@@ -394,6 +444,10 @@ while True:
                                                                     0.0, 0.0, 1.0, 0.0,
                                                                     object.scoords()[0], object.scoords()[1], 0.0, 1.0,
                                                                     ], dtype='f4')
+        program["uv_transform_matrix"].value = np.array([object.uv_width, 0.0, 0.0,
+                                                         0.0, object.uv_height, 0.0, 
+                                                         object.uv_x, object.uv_y, 1.0,
+                                                        ], dtype='f4')
         vao.render(mode=moderngl.TRIANGLE_STRIP)
     postprocessing.render()
     debug.render()
