@@ -78,7 +78,6 @@ def get_uv_coords(parameter_list):
         uv_width = parameter_list[2] / parameter_list[4]
         uv_height = parameter_list[7] / parameter_list[8]
         frames = parameter_list[3]
-        
         left_multi = 1
         left_add = 0
         try:
@@ -87,16 +86,14 @@ def get_uv_coords(parameter_list):
                 left_add = uv_width
         except:
             pass
-        
         if parameter_list[6].time():
             parameter_list[5] += 1
-        if parameter_list[5] >= frames:
-            parameter_list[5] = 1
-
+        if parameter_list[5] >= frames: #TODO fix this whole thing where all the first frames in animation are not actually the first and are completely cooked
+            parameter_list[5] = 0
         if frames == 1:
             return [uv_x + left_add, uv_width * left_multi, 1.0, uv_height]
         else:
-            return [(uv_x + uv_width * parameter_list[5] + 0.000005), uv_width * left_multi, 0.0, uv_height] # change uv_heigth for non stretched texture
+            return [(left_add + uv_x + uv_width * parameter_list[5] + 0.000005), uv_width * left_multi, 0.0, uv_height] # change uv_heigth for non stretched texture
 
 # =========================
 # Classes
@@ -131,7 +128,7 @@ class Environment:
         self.attributes = attribute_dict
         try:
             self.animation_timer = Timer(1 / self.texture.fps)
-            self.current_animation_frame = 1
+            self.current_animation_frame = 0
             #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x
             self.animation = [self.texture.animated, 0, self.texture.width / self.texture.frames, self.texture.frames, self.texture.width, self.current_animation_frame, self.animation_timer, self.texture.height, self.texture.height]
         except:
@@ -158,15 +155,18 @@ class Entity:
         self.facing = "right"
         self.attributes = {'collision': 'false'}
         self.currentanimation = "static"
-        self.animation_timer = Timer(1 / 12)
-        self.current_animation_frame = 1
         self.animation = {
-            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x
-            "static" : [True, 0, 42, 1, self.texture.width, self.current_animation_frame, self.animation_timer, 59, 59, self.facing, 0],
-            "walking" : [True, 67, 67, 12, self.texture.width, self.current_animation_frame, self.animation_timer, 53, 59, self.facing, -0.67],
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x, repeating
+            "static" : [True, 0, 42, 1, self.texture.width, 0, Timer(5), 59, 59, self.facing, 0,],
+            "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 12), 53, 59, self.facing, -0.67,],
+            "attack" : [True, 871, 119, 8, self.texture.width, 1, Timer(1 / 24), 59, 59, self.facing, -1.548,],
         }
         
     def uv_coords(self):
+        if self.currentanimation == "attack":
+            if self.animation[self.currentanimation][5] == 0:
+                self.animation[self.currentanimation][5] = 1
+                self.currentanimation = "static"
         self.animation[self.currentanimation][9] = self.facing
         if self.facing == "left": # <---- this is shit
             self.animation["static"][10] = 0 
@@ -174,7 +174,7 @@ class Entity:
             self.animation["static"][10] = -0.67
         self.width = self.animation[self.currentanimation][2] / 32
         return get_uv_coords(self.animation[self.currentanimation])
-
+        
     def scoords(self):
         return wcoords_translate(self.x + self.animation[self.currentanimation][10], self.y)
         
@@ -421,7 +421,8 @@ program["tex"] = 0
 # Game Loop
 # =========================
 while True:
-    player.currentanimation = "static"
+    if not player.currentanimation == "attack":
+        player.currentanimation = "static"
     # INPUT
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -431,7 +432,9 @@ while True:
                 debug.enabled = not debug.enabled
             if event.key == pygame.K_F4:
                 player.noclip = not player.noclip
-    
+            if event.key == pygame.K_DOWN:
+                player.currentanimation = "attack"
+
     key_pressed=pygame.key.get_pressed()
     if key_pressed[pygame.K_RIGHT]:
         player.facing = "right"
@@ -440,6 +443,7 @@ while True:
             player.x = player.collide()[1].x - player.hitbox_width
         else:
             player.currentanimation = "walking"
+            player.animation["attack"][5] = 1
     if key_pressed[pygame.K_LEFT]:
         player.facing = "left"
         player.x -= 0.1
@@ -447,7 +451,7 @@ while True:
             player.x = player.collide()[1].x + player.collide()[1].width
         else:
             player.currentanimation = "walking"
-
+            player.animation["attack"][5] = 1
     if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
         player.jumping = True
         player.y_velocity = 0.25
@@ -456,7 +460,7 @@ while True:
             player.y += 0.1
         if key_pressed[pygame.K_DOWN]:
             player.y -= 0.1
-
+            
     # DEBUG
     if player.y < -25:
         exit()
