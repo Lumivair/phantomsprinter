@@ -1,4 +1,4 @@
 floor 0 1
 wall1 0 16
 wall2 14 16
-lamp 14 5
+lamp 14 5 {layer=2;collision=false}

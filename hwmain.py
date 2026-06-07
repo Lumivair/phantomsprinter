@@ -48,7 +48,16 @@ def update_loaded_chunks():
                     for line in level:
                         line = line.strip()
                         line = line.split()
-                        collision_objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]]))
+                        try:
+                            parameters = line[3]
+                            parameters = parameters.strip("{}")
+                            parameters = parameters.split(";")
+                            parameter_dict = {}
+                            for i in range(len(parameters)):
+                                parameter_dict.update({parameters[i].split("=")[0]: parameters[i].split("=")[1]})
+                            objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict))
+                        except IndexError:
+                            objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]], {}))
 
                 new_chunks = []
             except FileNotFoundError:
@@ -58,33 +67,80 @@ def texture_load():
     for texture in assets:
         textures.update({texture : AssetManager(assets[texture])})
 
+def get_uv_coords(parameter_list):
+    #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x
+    
+    if parameter_list[0] == False:
+        #return uv_x, uv_width, uv_y, uv_height
+        return [1.0, 1.0, 1.0, 1.0]
+    elif parameter_list[0] == True:
+        uv_x = parameter_list[1] / parameter_list[4]
+        uv_width = parameter_list[2] / parameter_list[4]
+        uv_height = parameter_list[7] / parameter_list[8]
+        frames = parameter_list[3]
+        
+        left_multi = 1
+        left_add = 0
+        try:
+            if parameter_list[9] == "left":
+                left_multi = -1
+                left_add = uv_width
+        except:
+            pass
+        
+        if parameter_list[6].time():
+            parameter_list[5] += 1
+        if parameter_list[5] >= frames:
+            parameter_list[5] = 1
+
+        if frames == 1:
+            return [uv_x + left_add, uv_width * left_multi, 1.0, uv_height]
+        else:
+            return [(uv_x + uv_width * parameter_list[5] + 0.000005), uv_width * left_multi, 0.0, uv_height] # change uv_heigth for non stretched texture
+
 # =========================
 # Classes
 # =========================
 class AssetManager:
-    def __init__(self, texture_path):
-        with Image.open(texture_path) as image:
+    def __init__(self, texture_properties):
+        self.texture_path= texture_properties[0]
+        with Image.open(self.texture_path) as image:
             self.texture = image.convert("RGBA")
             self.width = self.texture.size[0]
             self.height = self.texture.size[1]
         self.texture_raw = ctx.texture((self.width, self.height), 4, self.texture.tobytes())
         self.texture_raw.filter = (ctx.NEAREST, ctx.NEAREST)
+        try:
+            self.frames = texture_properties[1]
+            self.fps = texture_properties[2]
+            self.animated = True
+        except IndexError:
+            self.frames = 1
+            self.fps = 0
+            self.animated = False
     def bind(self):
         self.texture_raw.use(location=0)
 
 class Environment:
-    def __init__(self, x, y, texture):
+    def __init__(self, x, y, texture, attribute_dict):
         self.x = x
         self.y = y
-        self.width = texture.width / 32
-        self.height = texture.height / 32
+        self.width = texture.width / 32 / texture.frames + 0.005
+        self.height = texture.height / 32 + 0.005
         self.texture = texture
-        self.uv_x = 1.0
-        self.uv_width = 1.0
-        self.uv_y = 1.0
-        self.uv_height = 1.0
+        self.attributes = attribute_dict
+        try:
+            self.animation_timer = Timer(1 / self.texture.fps)
+            self.current_animation_frame = 1
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x
+            self.animation = [self.texture.animated, 0, self.texture.width / self.texture.frames, self.texture.frames, self.texture.width, self.current_animation_frame, self.animation_timer, self.texture.height, self.texture.height]
+        except:
+            self.animation = [self.texture.animated]
+        
     def scoords(self):
         return wcoords_translate(self.x, self.y)
+    def uv_coords(self):
+        return get_uv_coords(self.animation)
 
 class Entity:
     def __init__(self, name, x, y, texture, width, height):
@@ -100,46 +156,39 @@ class Entity:
         self.hitbox_height = height
         self.texture = texture
         self.facing = "right"
-        self.frames = 13
-        self.uv_x = 1
-        self.uv_width = 1
-        self.uv_y = 1
-        self.uv_height = 1
+        self.attributes = {'collision': 'false'}
+        self.currentanimation = "static"
+        self.animation_timer = Timer(1 / 12)
+        self.current_animation_frame = 1
         self.animation = {
-                    #x start, x end, x offset(in world coords), y height, step, frames
-            "static" : (0, 23, 0, 59, 23, 1),
-            "walking" : (67, 871, -0.67, 53, 67, 12)
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x
+            "static" : [True, 0, 42, 1, self.texture.width, self.current_animation_frame, self.animation_timer, 59, 59, self.facing, 0],
+            "walking" : [True, 67, 67, 12, self.texture.width, self.current_animation_frame, self.animation_timer, 53, 59, self.facing, -0.67],
         }
-        self.currentanimation = ["static", 1]
-        self.animation_timer = Timer(0.0833333333333)
-    def setuvcoords(self):
-        current_animation_type = self.animation[self.currentanimation[0]]
-        current_animation_frame = self.currentanimation[1]
-        self.uv_x = current_animation_type[0] / self.texture.texture.size[0]
-        self.uv_height = current_animation_type[3] / self.texture.texture.size[1] # change this to uv_y for more accurate and no scaling
-        self.uv_width = current_animation_type[4] / self.texture.texture.size[0]
-        self.width = current_animation_type[4] / 32
-        if player.facing == "left":
-                self.uv_width = self.uv_width * -1
-                self.uv_x = current_animation_type[0] / self.texture.texture.size[0] - self.uv_width
-        if current_animation_type[5] > 1:
-            self.uv_x = (current_animation_type[0] * current_animation_frame) / self.texture.texture.size[0]
-            if current_animation_frame >= 12:
-                self.currentanimation[1] = 1
-            elif self.animation_timer.time():
-                self.currentanimation[1] += 1
-            if player.facing == "left":
-                self.uv_x = (current_animation_type[0] * current_animation_frame) / self.texture.texture.size[0] - self.uv_width
+        
+    def uv_coords(self):
+        self.animation[self.currentanimation][9] = self.facing
+        if self.facing == "left": # <---- this is shit
+            self.animation["static"][10] = 0 
+        else:
+            self.animation["static"][10] = -0.67
+        self.width = self.animation[self.currentanimation][2] / 32
+        return get_uv_coords(self.animation[self.currentanimation])
 
     def scoords(self):
-        return wcoords_translate(self.x + self.animation[self.currentanimation[0]][2], self.y)
+        return wcoords_translate(self.x + self.animation[self.currentanimation][10], self.y)
         
     def chunk(self):
         return chunk_translate(self.x, self.y)
     def collide(self):
-        for object in collision_objects:
-            if self.x > object.x - self.hitbox_width and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
-                return [True, object]
+        for object in objects:
+            try:
+                if object.attributes["collision"] == "true":
+                    if self.x > object.x - self.hitbox_width and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
+                        return [True, object]
+            except KeyError:
+                if self.x > object.x - self.hitbox_width and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
+                        return [True, object]
         return [False, None]
 
 class Camera:
@@ -300,30 +349,32 @@ debug_timer = Timer(0.1)
 # Game Objects
 # =========================
 assets = {
-    "debug_player": "assets/debug/player.png",
-    "debug_ground": "assets/debug/floor.png",
-    "player": "assets/entities/player/static.png",
-    "player_moving": "assets/entities/player/player_atlas.png",
-    "box2x": "assets/debug/box2x.png",
-    "box": "assets/debug/box.png",
-    "compass": "assets/debug/compass.png",
-    "floor": "assets/environment/floors/floor1.png",
-    "wall1": "assets/environment/walls/wall1.png",
-    "wall2": "assets/environment/walls/wall2.png",
-    "wall3": "assets/environment/walls/wall3.png",
-    "3x2_a": "assets/environment/platforms/3x2_a.png",
-    "3x2_b": "assets/environment/platforms/3x2_b.png",
-    "lamp": "assets/environment/misc/lamp-spill.png",
+    #name         : texture path, total frames, animation speed(in fps)
+    "debug_player": ("assets/debug/player.png",),
+    "debug_ground": ("assets/debug/floor.png",),
+    "player_static": ("assets/entities/player/static.png",),
+    "player_atlas": ("assets/entities/player/player_atlas.png",),
+    "box2x": ("assets/debug/box2x.png",),
+    "box": ("assets/debug/box.png",),
+    "compass": ("assets/debug/compass.png",),
+    "floor": ("assets/environment/floors/floor1.png",),
+    "wall1": ("assets/environment/walls/wall1.png",),
+    "wall2": ("assets/environment/walls/wall2.png",),
+    "wall3": ("assets/environment/walls/wall3.png",),
+    "3x2_a": ("assets/environment/platforms/3x2_a.png",),
+    "3x2_b": ("assets/environment/platforms/3x2_b.png",),
+    "lamp": ("assets/environment/misc/lamp-spill.png",),
+    "rubbish_bin": ("assets/environment/misc/rubbish_bin.png", 5, 5),
 }
 textures = {}
 texture_load()
 
 camera = Camera()
-player = Entity("hanspeter", 8, 8, textures["player_moving"], 0.71875, 1.75)
+player = Entity("hanspeter", 26, 3, textures["player_atlas"], 0.6, 1.75)
 
 debug = Debug()
-collision_objects = []
-objects = [player]
+objects = []
+objects.append(player)
 
 new_chunks = []
 loaded_chunks = []
@@ -331,7 +382,6 @@ loaded_chunks = []
 # =========================
 # OpenGL main renderer
 # =========================
-
 vertex = np.array([ 0.0, 0.0, 0, 0, #topleft
                     0.0,-1.0, 0, 1, #bottomleft
                     1.0, 0.0, 1, 0, #topright
@@ -371,7 +421,7 @@ program["tex"] = 0
 # Game Loop
 # =========================
 while True:
-    player.currentanimation[0] = "static"
+    player.currentanimation = "static"
     # INPUT
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -389,14 +439,14 @@ while True:
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[1].x - player.hitbox_width
         else:
-            player.currentanimation[0] = "walking"
+            player.currentanimation = "walking"
     if key_pressed[pygame.K_LEFT]:
         player.facing = "left"
         player.x -= 0.1
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[1].x + player.collide()[1].width
         else:
-            player.currentanimation[0] = "walking"
+            player.currentanimation = "walking"
 
     if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
         player.jumping = True
@@ -410,9 +460,7 @@ while True:
     # DEBUG
     if player.y < -25:
         exit()
-    player.setuvcoords()
-    
-   
+
     # UPDATE CHUNKS
     update_loaded_chunks()
 
@@ -437,17 +485,20 @@ while True:
     # RENDERING
     fbo.use()
     ctx.clear(0.5, 0, 0.5)
-    for object in objects + collision_objects:
+    for object in objects:
         object.texture.bind()
-        program["transform_matrix"].value = np.array([              (object.width * screen_ratio[0]), 0.0, 0.0, 0.0,
-                                                                    0.0, (object.height * screen_ratio[1]), 0.0, 0.0,
-                                                                    0.0, 0.0, 1.0, 0.0,
-                                                                    object.scoords()[0], object.scoords()[1], 0.0, 1.0,
-                                                                    ], dtype='f4')
-        program["uv_transform_matrix"].value = np.array([object.uv_width, 0.0, 0.0,
-                                                         0.0, object.uv_height, 0.0, 
-                                                         object.uv_x, object.uv_y, 1.0,
+        uv_coords = object.uv_coords()
+        program["uv_transform_matrix"].value = np.array([uv_coords[1], 0.0, 0.0,
+                                                         0.0, uv_coords[3], 0.0, 
+                                                         uv_coords[0], uv_coords[2], 1.0,
                                                         ], dtype='f4')
+        scoords = object.scoords()
+        program["transform_matrix"].value = np.array([(object.width * screen_ratio[0]), 0.0, 0.0, 0.0,
+                                                       0.0, (object.height * screen_ratio[1]), 0.0, 0.0,
+                                                       0.0, 0.0, 1.0, 0.0,
+                                                       scoords[0], scoords[1], 0.0, 1.0,
+                                                      ], dtype='f4')
+
         vao.render(mode=moderngl.TRIANGLE_STRIP)
     postprocessing.render()
     debug.render()
