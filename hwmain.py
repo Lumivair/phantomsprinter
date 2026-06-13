@@ -37,10 +37,17 @@ def chunk_translate(x, y):
     return [math.floor(x / 16), math.floor(y / 16)]
 
 def update_loaded_chunks():
+    def get_parameters(parameters):
+        parameters = parameters.strip("{}")
+        parameters = parameters.split(";")
+        parameter_dict = {}
+        for i in range(len(parameters)):
+            parameter_dict.update({parameters[i].split("=")[0]: parameters[i].split("=")[1]})
+        return parameter_dict
     new_chunks = []
     new_chunks.append(player.chunk())
     new_chunks.append([player.chunk()[0] + 1, player.chunk()[1]])
-    new_chunks.append([player.chunk()[0] -1 , player.chunk()[1]]) # FIX if bored, make it smarter and not just all chunks next to player
+    new_chunks.append([player.chunk()[0] -1 , player.chunk()[1]]) # TODO if bored, make it smarter and not just all chunks next to player
     # print("new:", new_chunks)
     # print("loaded:", loaded_chunks)
     for chunk in new_chunks:
@@ -52,18 +59,16 @@ def update_loaded_chunks():
                         line = line.strip()
                         line = line.split()
                         try:
-                            parameters = line[3]
-                            parameters = parameters.strip("{}")
-                            parameters = parameters.split(";")
-                            parameter_dict = {}
-                            for i in range(len(parameters)):
-                                parameter_dict.update({parameters[i].split("=")[0]: parameters[i].split("=")[1]})
-                            objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict))
+                            parameter_dict = get_parameters(line[3])
                         except IndexError:
-                            try:
-                                objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]], {"layer": "1"}))
-                            except:
-                                print("\033[91m[Error]", datetime.datetime.now().strftime("%y-%m-%d %H:%M:%S:"),f"Line {i + 1} in PhantomSprinter Mapping System chunk [{chunk[0]},{chunk[1]}] is corrupted.\033[0m")
+                            parameter_dict = {"layer": "1"} # default parameters
+                        try:
+                            if line[0] not in enemies:
+                                objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict))
+                            else:
+                                objects.append(Enemy(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], *enemies[line[0]], parameter_dict))
+                        except:
+                            print("\033[91m[Error]", datetime.datetime.now().strftime("%y-%m-%d %H:%M:%S:"),f"Line {i + 1} in PhantomSprinter Mapping System chunk [{chunk[0]},{chunk[1]}] is corrupted.\033[0m")
                 new_chunks = []
             except FileNotFoundError:
                 pass
@@ -214,15 +219,14 @@ class Player(Entity):
     def damage(self, amount):
         self.health -= amount
         if self.health <= 0:
-            exit()
+            objects.remove(self)
 class Enemy(Entity):
-    def __init__(self, x, y, texture, width, height):
+    def __init__(self, x, y, texture, width, height, attributes):
         super().__init__(x, y, texture, width, height) 
+        self.attributes = attributes
     def damage(self, amount):
         self.health -= amount
         if self.health <= 0:
-            global debug_enemy
-            debug_enemy = None
             objects.remove(self)
 class Camera:
     def __init__(self):
@@ -397,15 +401,20 @@ assets = {
     "lamp": ("assets/environment/misc/lamp-spill.png",),
     "rubbish_bin": ("assets/environment/misc/rubbish_bin.png", 5, 5),
 }
+
 textures = {}
 texture_load()
 
+enemies = {
+    "debug_enemy" : (textures["debug_enemy_atlas"], 0.6, 1.75)
+}
+
 camera = Camera()
 player = Player(26, 3, textures["player_atlas"], 0.6, 1.75, "hanspeter")
-debug_enemy = Enemy(8, 2.75, textures["debug_enemy_atlas"], 0.6, 1.75)
 
 debug = Debug()
-objects = [player, debug_enemy]
+objects = [player]
+attack_timer = Timer(0.3)
 
 new_chunks = []
 loaded_chunks = []
@@ -465,12 +474,14 @@ while True:
             if event.key == pygame.K_SPACE and player.currentanimation == "static":
                     player.currentanimation = "attack"
                     player.attack()
-            if event.key == pygame.K_f and debug_enemy.currentanimation == "static":
-                debug_enemy.currentanimation = "attack"
-                debug_enemy.attack()
+            # if event.key == pygame.K_f and debug_enemy.currentanimation == "static":
+            #     debug_enemy.currentanimation = "attack"
+            #     debug_enemy.attack()
 
-    if not player.currentanimation == "attack":
-        player.currentanimation = "static"
+    for object in objects:
+        if not object.__class__ == Environment:
+            if not object.currentanimation == "attack":
+                object.currentanimation = "static"
     key_pressed=pygame.key.get_pressed()
     if key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
@@ -504,20 +515,51 @@ while True:
     # UPDATE CHUNKS
     update_loaded_chunks()
 
+    # ENEMY AI
+    for object in objects:
+        if object.__class__ == Enemy:
+            if abs(object.x - player.x) < 6:
+                if object.x > player.x and attack_timer.timer == 0:
+                    object.facing = "left"
+                    if object.x > player.x + 1.5:
+                        object.x -= 0.05
+                        if object.collide()[0] and not object.noclip:
+                            object.x = object.collide()[1].x + object.collide()[1].width
+                        elif not object.currentanimation == "attack":
+                            object.currentanimation = "walking"
+                            object.animation["attack"][5] = 1
+                            attack_timer.timer = 0
+                elif object.x < player.x and attack_timer.timer == 0:
+                    object.facing = "right"
+                    if object.x < player.x - 1.5:
+                        object.x += 0.05
+                        if object.collide()[0] and not object.noclip:
+                            object.x = object.collide()[1].x - object.hitbox_width
+                        elif not object.currentanimation == "attack":
+                            object.currentanimation = "walking"
+                            object.animation["attack"][5] = 1
+                            attack_timer.timer = 0
+                if abs(object.x - player.x) <= 1.5 and object.currentanimation == "static" or not attack_timer.timer == 0:
+                    if attack_timer.time():
+                        object.currentanimation = "attack"
+                        object.attack()
+
     # COLLISIONS
-    if player.noclip == False:
-        player.y += player.y_velocity
-        if player.collide()[0] == True:
-            if player.y_velocity < 0: #fall collision
-                player.jumping = False
-                player.y = player.collide()[1].y + player.hitbox_height
-            elif player.y_velocity > 0: #head hitting
-                player.y = player.collide()[1].y - player.collide()[1].height
-            player.y_velocity = 0
-        else:
-            if player.y_velocity > -1:
-                player.y_velocity -= 0.01
-                player.jumping = True
+    for object in objects:
+        if not object.__class__ == Environment:
+            if object.noclip == False:
+                object.y += object.y_velocity
+                if object.collide()[0] == True:
+                    if object.y_velocity < 0: #fall collision
+                        object.jumping = False
+                        object.y = object.collide()[1].y + object.hitbox_height
+                    elif player.y_velocity > 0: #head hitting
+                        player.y = object.collide()[1].y - object.collide()[1].height
+                    object.y_velocity = 0
+                else:
+                    if object.y_velocity > -1:
+                        object.y_velocity -= 0.01
+                        object.jumping = True
 
     # UPDATE CAMERA
     camera.update() # remove for static cam
@@ -577,3 +619,6 @@ while True:
     debug.render()
     pygame.display.flip()
     dt = clock.tick_busy_loop(60) / 1000 # dt is time it takes for one frame
+ 
+    if player.health <= 0 and attack_timer.time(): # <--- DEBUG DEBUG DEBUG
+        exit() 
