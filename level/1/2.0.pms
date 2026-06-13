@@ -1,2 +1,2 @@
-floor 0 1
-rubbish_bin 0 3 {collision=false}
+floor 0 1 {layer=1;collision=true}
+rubbish_bin 0 3 {layer=3;collision=false}
