@@ -54,7 +54,7 @@ def update_loaded_chunks():
         if chunk not in loaded_chunks:
             loaded_chunks.append(chunk)
             try: 
-                with open(f"level/1/{chunk[0]}.{chunk[1]}.pms") as level:
+                with open(f"{sys._MEIPASS}/level/1/{chunk[0]}.{chunk[1]}.pms") as level:
                     for i, line in enumerate(level):
                         line = line.strip()
                         line = line.split()
@@ -239,7 +239,7 @@ class Debug:
     def __init__(self):
         self.enabled = False
         self.fps = 62.5
-        self.font = pygame.font.Font("assets/font/Saira_Stencil/static/SairaStencil-SemiBold.ttf",50)
+        self.font = pygame.font.Font(f"{sys._MEIPASS}/assets/font/Saira_Stencil/static/SairaStencil-SemiBold.ttf",50)
         self.vertex = np.array([-1.0,  1.0, 0.0, 0, 1, #topleft
                                 -1.0, -1.0, 0.0, 0, 0, #bottomleft
                                  1.0,  1.0, 0.0, 1, 1, #topright
@@ -383,23 +383,23 @@ debug_timer = Timer(0.1)
 # =========================
 assets = {
     #name         : texture path, total frames, animation speed(in fps)
-    "debug_player": ("assets/debug/player.png",),
-    "debug_ground": ("assets/debug/floor.png",),
-    "debug_attack": ("assets/debug/attack.png",),
-    "debug_enemy_atlas": ("assets/debug/debug_enemy_atlas.png",),
-    "compass": ("assets/debug/compass.png",),
-    "player_static": ("assets/entities/player/static.png",),
-    "player_atlas": ("assets/entities/player/player_atlas.png",),
-    "box2x": ("assets/debug/box2x.png",),
-    "box": ("assets/debug/box.png",),
-    "floor": ("assets/environment/floors/floor1.png",),
-    "wall1": ("assets/environment/walls/wall1.png",),
-    "wall2": ("assets/environment/walls/wall2.png",),
-    "wall3": ("assets/environment/walls/wall3.png",),
-    "3x2_a": ("assets/environment/platforms/3x2_a.png",),
-    "3x2_b": ("assets/environment/platforms/3x2_b.png",),
-    "lamp": ("assets/environment/misc/lamp-spill.png",),
-    "rubbish_bin": ("assets/environment/misc/rubbish_bin.png", 5, 5),
+    "debug_player": (f"{sys._MEIPASS}/assets/debug/player.png",),
+    "debug_ground": (f"{sys._MEIPASS}/assets/debug/floor.png",),
+    "debug_attack": (f"{sys._MEIPASS}/assets/debug/attack.png",),
+    "debug_enemy_atlas": (f"{sys._MEIPASS}/assets/debug/debug_enemy_atlas.png",),
+    "compass": (f"{sys._MEIPASS}/assets/debug/compass.png",),
+    "player_static": (f"{sys._MEIPASS}/assets/entities/player/static.png",),
+    "player_atlas": (f"{sys._MEIPASS}/assets/entities/player/player_atlas.png",),
+    "box2x": (f"{sys._MEIPASS}/assets/debug/box2x.png",),
+    "box": (f"{sys._MEIPASS}/assets/debug/box.png",),
+    "floor": (f"{sys._MEIPASS}/assets/environment/floors/floor1.png",),
+    "wall1": (f"{sys._MEIPASS}/assets/environment/walls/wall1.png",),
+    "wall2": (f"{sys._MEIPASS}/assets/environment/walls/wall2.png",),
+    "wall3": (f"{sys._MEIPASS}/assets/environment/walls/wall3.png",),
+    "3x2_a": (f"{sys._MEIPASS}/assets/environment/platforms/3x2_a.png",),
+    "3x2_b": (f"{sys._MEIPASS}/assets/environment/platforms/3x2_b.png",),
+    "lamp": (f"{sys._MEIPASS}/assets/environment/misc/lamp-spill.png",),
+    "rubbish_bin": (f"{sys._MEIPASS}/assets/environment/misc/rubbish_bin.png", 5, 5),
 }
 
 textures = {}
