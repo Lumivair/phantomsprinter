@@ -1,3 +1,4 @@
 default_back_wall 0 16 {layer=3;collision=false}
 brick_16x1 0 1
-brick_16x1 0 16
+stone_9x9 5 10
+stone_3x2 1 3

@@ -1,0 +1,13 @@
+default_back_wall 0 16 {layer=3;collision=false}
+brick_16x1 0 1
+
+rubbish_bin 0 3 {layer=3;collision=false}
+aircon_2x1 4 3 {layer=3;collision=false}
+aircon_1x1 4 2 {layer=3;collision=false}
+block_8 3 5 {layer=3;collision=false}
+burning_barrel_black 7 5 {layer=3;collision=false}
+burning_barrel_red 8 5 {layer=3;collision=false}
+warning_sign 11 6 {layer=3;collision=false}
+warning_signpost 15 2.7 {layer=3;collision=false}
+
+debug_enemy 6 3 {layer=2;collision=false}

@@ -18,20 +18,30 @@ def exit():
 def layer_sort(object):
     return object.attributes["layer"]
 
+def reset_game():
+    global player, objects, loaded_chunks, camera, debug, attack_timer, new_chunks
+    player = Player(7, 5, textures["player_atlas"], 0.6, 1.75, "hanspeter")
+    debug_sky = Background(0, 0, textures["debug_sky"], {"layer":"4","collision":"false","parallax":"0"})
+    debug_towers = Background(0, 0.25, textures["debug_towers"], {"layer":"4","collision":"false","parallax":"0.05"})
+    debug_mountains = Background(0, 0.25, textures["debug_mountains"], {"layer":"4","collision":"false","parallax":"0.06"})
+    objects = [player, debug_sky, debug_towers, debug_mountains]
+    loaded_chunks = []
+    camera = Camera()
+    debug = Debug()
+    attack_timer = Timer(0.3)
+    new_chunks = [] 
+
 def set_screen_ratio():
-        global screen_ratio
-        global camera_ratio
-        global screen_width
-        global screen_height
+        global screen_ratio, camera_ratio, screen_width, screen_height
         screen_size = pygame.display.get_window_size()
         screen_width = screen_size[0]
         screen_height = screen_size[1]
         ratio_multiplier = math.sqrt(144/(screen_width * screen_height))
         screen_ratio = [(1 / (screen_width * ratio_multiplier) * 2), (1 / (screen_height * ratio_multiplier) * 2)]
-        camera_ratio = [(screen_width * ratio_multiplier) / 2 - 0.5, (screen_height * ratio_multiplier) / 2 + 0.5]
+        camera_ratio = [(screen_width * ratio_multiplier) / 2 - 0.5, (screen_height * ratio_multiplier) / 2 + 0.75]
 
-def wcoords_translate(x, y):
-    return[(x - camera.wcoord_x) * screen_ratio[0] - 1, (y - camera.wcoord_y) * screen_ratio[1] + 1]
+def wcoords_translate(x, y, parallax_factor):
+    return[((x - camera.wcoord_x * float(parallax_factor)) * screen_ratio[0]) - 1, ((y - camera.wcoord_y * float(parallax_factor)) * screen_ratio[1]) + 1]
 
 def chunk_translate(x, y):
     return [math.floor(x / 16), math.floor(y / 16)]
@@ -60,15 +70,20 @@ def update_loaded_chunks():
                         line = line.split()
                         try:
                             parameter_dict = get_parameters(line[3])
+                            if not "parallax" in parameter_dict:
+                                parameter_dict["parallax"] = "1"
                         except IndexError:
-                            parameter_dict = {"layer": "1"} # default parameters
+                            parameter_dict = {"layer": "1", "parallax": "1"} # default parameters
                         try:
                             if line[0] not in enemies:
-                                objects.append(Environment(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict))
+                                objects.append(Environment(float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict))
                             else:
                                 objects.append(Enemy(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], *enemies[line[0]], parameter_dict))
                         except:
-                            print("\033[91m[Error]", datetime.datetime.now().strftime("%y-%m-%d %H:%M:%S:"),f"Line {i + 1} in PhantomSprinter Mapping System chunk [{chunk[0]},{chunk[1]}] is corrupted.\033[0m")
+                            if len(line) == 0 or line[0].startswith("#"):
+                                pass
+                            else: 
+                                print("\033[91m[Error]", datetime.datetime.now().strftime("%y-%m-%d %H:%M:%S:"),f"Line {i + 1} in PhantomSprinter Mapping System chunk [{chunk[0]},{chunk[1]}] is corrupted.\033[0m")
                 new_chunks = []
             except FileNotFoundError:
                 pass
@@ -116,14 +131,21 @@ class AssetManager:
             self.height = self.texture.size[1]
         self.texture_raw = ctx.texture((self.width, self.height), 4, self.texture.tobytes())
         self.texture_raw.filter = (ctx.NEAREST, ctx.NEAREST)
+        self.custom_hitbox = None
         try:
             self.frames = texture_properties[1]
             self.fps = texture_properties[2]
             self.animated = True
+            try:
+                self.custom_hitbox = texture_properties [3]
+                self.animated = False
+            except IndexError:
+                pass
         except IndexError:
             self.frames = 1
             self.fps = 0
             self.animated = False
+        
     def bind(self):
         self.texture_raw.use(location=0)
 
@@ -143,10 +165,15 @@ class Environment:
         except:
             self.animation = [self.texture.animated]
     def scoords(self):
-        return wcoords_translate(self.x, self.y)
+        return wcoords_translate(self.x, self.y, self.attributes["parallax"])
     def uv_coords(self):
         return get_uv_coords(self.animation)
 
+class Background(Environment):
+    def __init__(self, x, y, texture, attribute_dict):
+        super().__init__(x, y, texture, attribute_dict)
+        self.test = "yay"
+    
 class Entity:
     def __init__(self, x, y, texture, width, height):
         self.x = x
@@ -186,29 +213,33 @@ class Entity:
         return get_uv_coords(self.animation[self.currentanimation])
         
     def scoords(self):
-        return wcoords_translate(self.x + self.animation[self.currentanimation][10], self.y)
+        return wcoords_translate(self.x + self.animation[self.currentanimation][10], self.y, 1)
         
     def chunk(self):
         return chunk_translate(self.x, self.y)
     def collide(self):
         for object in objects:
-            try:
-                if object.attributes["collision"] == "true":
-                    if self.x > object.x - self.hitbox_width and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
-                        return [True, object]
-            except KeyError:
-                if self.x > object.x - self.hitbox_width and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
-                        return [True, object]
+            if object.attributes.get("collision") == "true" or object.attributes.get("collision") == None:
+                if not object.texture.custom_hitbox == None:
+                    with open(object.texture.custom_hitbox) as custom_hitbox:
+                        for line in custom_hitbox:
+                            line = line.strip()
+                            line = line.split()
+                            #line: x1, y1 -> x2, y2
+                            if self.x + self.hitbox_width > object.x + float(line[0]) and self.x < object.x + float(line[2]) and self.y < object.y + self.hitbox_height - float(line[1]) and self.y > object.y - float(line[3]):
+                                return [True, object.x + float(line[0]), object.x + float(line[2]), object.y - float(line[1]), object.y - float(line[3])]
+                elif self.x + self.hitbox_width > object.x and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
+                    return [True, object.x, object.x + object.width, object.y, object.y - object.height]
         return [False, None]
     def attack(self):
         if self.facing == "right":
             for object in objects:
-                if not object.__class__ == self.__class__ and not object.__class__ == Environment:
+                if isinstance(object, Entity) and not object.__class__ == self.__class__:
                     if self.x + self.attack_hitbox_width > object.x and self.x < object.x + object.hitbox_width and self.y - self.attack_hitbox_height < object.y and self.y > object.y - object.hitbox_height:
                         object.damage(1)
         if self.facing == "left":
             for object in objects:
-                if not object.__class__ == self.__class__ and not object.__class__ == Environment:
+                if isinstance(object, Entity) and not object.__class__ == self.__class__:
                     if self.x - self.attack_hitbox_width < object.x and self.x > object.x + object.hitbox_width and self.y - self.attack_hitbox_height < object.y and self.y > object.y - object.hitbox_height:
                         object.damage(1)
 
@@ -218,8 +249,7 @@ class Player(Entity):
         self.name = name
     def damage(self, amount):
         self.health -= amount
-        if self.health <= 0:
-            objects.remove(self)
+
 class Enemy(Entity):
     def __init__(self, x, y, texture, width, height, attributes):
         super().__init__(x, y, texture, width, height) 
@@ -339,7 +369,7 @@ class PostProcessing:
             void main() {
             float dist = distance(gl_FragCoord.xy, center);
             float noise = fract(sin(dot(gl_FragCoord.xy / dist, vec2(12.9898, 78.233))) * 43758.5453);
-            float alpha = mix(0.0, 1.0, (dist / smoothness)) + (0.005 * noise);
+            float alpha = mix(0.0, 0.5, (dist / smoothness)) + (0.005 * noise);
             vec3 screen_color = texture(tex, v_uv).rgb;
             vec3 vignette_color = vec3(alpha, alpha, alpha);
             fragColor = vec4((screen_color - vignette_color), 1.0);
@@ -368,13 +398,16 @@ pygame.display.set_mode(
     (1280, 720),
     pygame.OPENGL | pygame.DOUBLEBUF
 )
+pygame.display.set_caption('PhantomSprinter')
+pygame.mouse.set_visible(False)
+pygame.display.set_icon(pygame.image.load("assets/debug/icon.png"))
+
 ctx = moderngl.create_context()
 ctx.enable(moderngl.BLEND) # add transparancy
 set_screen_ratio()
 fbo = ctx.framebuffer(color_attachments=[ctx.texture((screen_width, screen_height), 4)])
 postprocessing = PostProcessing()
 
-pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 debug_timer = Timer(0.1)
 
@@ -383,23 +416,53 @@ debug_timer = Timer(0.1)
 # =========================
 assets = {
     #name         : texture path, total frames, animation speed(in fps)
+    #debug
     "debug_player": ("assets/debug/player.png",),
     "debug_ground": ("assets/debug/floor.png",),
+    "debug_background" : ("assets/debug/bg.png",),
+    "debug_sky": ("assets/debug/bg/sky_moon.png",),
+    "debug_towers": ("assets/debug/bg/towers.png",),
+    "debug_mountains": ("assets/debug/bg/mountains.png",),
     "debug_attack": ("assets/debug/attack.png",),
     "debug_enemy_atlas": ("assets/debug/debug_enemy_atlas.png",),
-    "compass": ("assets/debug/compass.png",),
-    "player_static": ("assets/entities/player/static.png",),
+    "debug_compass": ("assets/debug/compass.png",),
+    "debug_box2x": ("assets/debug/box2x.png",),
+    "debug_box": ("assets/debug/box.png",),
+
+    #player
     "player_atlas": ("assets/entities/player/player_atlas.png",),
-    "box2x": ("assets/debug/box2x.png",),
-    "box": ("assets/debug/box.png",),
-    "floor": ("assets/environment/floors/floor1.png",),
-    "wall1": ("assets/environment/walls/wall1.png",),
-    "wall2": ("assets/environment/walls/wall2.png",),
-    "wall3": ("assets/environment/walls/wall3.png",),
-    "3x2_a": ("assets/environment/platforms/3x2_a.png",),
-    "3x2_b": ("assets/environment/platforms/3x2_b.png",),
-    "lamp": ("assets/environment/misc/lamp-spill.png",),
-    "rubbish_bin": ("assets/environment/misc/rubbish_bin.png", 5, 5),
+
+    #terrain
+    "brick_16x1": ("assets/environment/terrain/brick_16x1.png",),
+    "brick_2x1": ("assets/environment/terrain/brick_2x1.png",),
+    "rusted_metal_1x1": ("assets/environment/terrain/rusted_metal_1x1.png",),
+    "stone_2x1_1": ("assets/environment/terrain/stone_2x1_1.png",),
+    "stone_2x1_2": ("assets/environment/terrain/stone_2x1_2.png",),
+    "stone_3x1": ("assets/environment/terrain/stone_3x1.png",),
+    "stone_4x1": ("assets/environment/terrain/stone_4x1.png",),
+    "stone_4x2": ("assets/environment/terrain/stone_4x2.png",),
+    "wall_1x11": ("assets/environment/terrain/wall_1x11.png",),
+    "wall_2x11": ("assets/environment/terrain/wall_2x11.png",),
+    "wall_2x15": ("assets/environment/terrain/wall_2x15.png",),
+    #custom hitbox
+    "stone_9x9": ("assets/environment/terrain/stone_9x9.png", 1, 0, "assets/environment/terrain/stone_9x9.col"),
+    "stone_3x2": ("assets/environment/terrain/stone_3x2.png", 1, 0, "assets/environment/terrain/stone_3x2.col"),
+
+    #decoration
+    "lamp": ("assets/environment/decoration/lamp.png",),
+    "block_8": ("assets/environment/decoration/block_8.png",),
+    "warning_sign": ("assets/environment/decoration/warning_sign.png",),
+    "warning_signpost": ("assets/environment/decoration/warning_signpost.png",),
+    #animated
+    "rubbish_bin": ("assets/environment/decoration/rubbish_bin_atlas.png", 5, 5),
+    "aircon_1x1": ("assets/environment/decoration/aircon_1x1_atlas.png", 3, 30),
+    "aircon_2x1": ("assets/environment/decoration/aircon_2x1_atlas.png", 3, 30),
+    "burning_barrel_black": ("assets/environment/decoration/burning_barrel_black_atlas.png", 3, 6),
+    "burning_barrel_red": ("assets/environment/decoration/burning_barrel_red_atlas.png", 3, 6),
+    
+
+    #background
+    "default_back_wall": ("assets/environment/background/default_back_wall.png",),
 }
 
 textures = {}
@@ -409,15 +472,10 @@ enemies = {
     "debug_enemy" : (textures["debug_enemy_atlas"], 0.6, 1.75)
 }
 
-camera = Camera()
-player = Player(26, 3, textures["player_atlas"], 0.6, 1.75, "hanspeter")
 
-debug = Debug()
-objects = [player]
-attack_timer = Timer(0.3)
+reset_game()
 
-new_chunks = []
-loaded_chunks = []
+
 
 # =========================
 # OpenGL main renderer
@@ -479,14 +537,14 @@ while True:
             #     debug_enemy.attack()
 
     for object in objects:
-        if not object.__class__ == Environment:
+        if isinstance(object, Entity):
             if not object.currentanimation == "attack":
                 object.currentanimation = "static"
     key_pressed=pygame.key.get_pressed()
     if key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
         if player.collide()[0] and not player.noclip:
-            player.x = player.collide()[1].x - player.hitbox_width
+            player.x = player.collide()[1] - player.hitbox_width
         elif not player.currentanimation == "attack":
             player.facing = "right"
             player.currentanimation = "walking"
@@ -494,7 +552,7 @@ while True:
     if key_pressed[pygame.K_LEFT]:
         player.x -= 0.1
         if player.collide()[0] and not player.noclip:
-            player.x = player.collide()[1].x + player.collide()[1].width
+            player.x = player.collide()[2]
         elif not player.currentanimation == "attack":
             player.facing = "left"
             player.currentanimation = "walking"
@@ -524,7 +582,7 @@ while True:
                     if object.x > player.x + 1.5:
                         object.x -= 0.05
                         if object.collide()[0] and not object.noclip:
-                            object.x = object.collide()[1].x + object.collide()[1].width
+                            object.x = object.collide()[2]
                         elif not object.currentanimation == "attack":
                             object.currentanimation = "walking"
                             object.animation["attack"][5] = 1
@@ -534,7 +592,7 @@ while True:
                     if object.x < player.x - 1.5:
                         object.x += 0.05
                         if object.collide()[0] and not object.noclip:
-                            object.x = object.collide()[1].x - object.hitbox_width
+                            object.x = object.collide()[1] - object.hitbox_width
                         elif not object.currentanimation == "attack":
                             object.currentanimation = "walking"
                             object.animation["attack"][5] = 1
@@ -546,15 +604,15 @@ while True:
 
     # COLLISIONS
     for object in objects:
-        if not object.__class__ == Environment:
+        if isinstance(object, Entity):
             if object.noclip == False:
                 object.y += object.y_velocity
                 if object.collide()[0] == True:
                     if object.y_velocity < 0: #fall collision
                         object.jumping = False
-                        object.y = object.collide()[1].y + object.hitbox_height
+                        object.y = object.collide()[3] + object.hitbox_height
                     elif player.y_velocity > 0: #head hitting
-                        player.y = object.collide()[1].y - object.collide()[1].height
+                        player.y = object.collide()[4]
                     object.y_velocity = 0
                 else:
                     if object.y_velocity > -1:
@@ -594,7 +652,7 @@ while True:
                 program["transform_matrix"].value = np.array([(object.hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
                                                         0.0, (object.hitbox_height * screen_ratio[1]), 0.0, 0.0,
                                                         0.0, 0.0, 1.0, 0.0,
-                                                        wcoords_translate(object.x, object.y)[0], wcoords_translate(object.x, object.y)[1], 0.0, 1.0,
+                                                        wcoords_translate(object.x, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
                                                         ], dtype='f4')   
                 textures["debug_player"].bind()
                 vao.render(mode=moderngl.TRIANGLE_STRIP)
@@ -605,13 +663,13 @@ while True:
                         program["transform_matrix"].value = np.array([(object.attack_hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
                                                                 0.0, (object.attack_hitbox_height * screen_ratio[1]), 0.0, 0.0,
                                                                 0.0, 0.0, 1.0, 0.0,
-                                                                wcoords_translate(object.x, object.y)[0], wcoords_translate(object.x, object.y)[1], 0.0, 1.0,
+                                                                wcoords_translate(object.x, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
                                                                 ], dtype='f4')   
                     else:
                         program["transform_matrix"].value = np.array([(- object.attack_hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
                                                                 0.0, (object.attack_hitbox_height * screen_ratio[1]), 0.0, 0.0,
                                                                 0.0, 0.0, 1.0, 0.0,
-                                                                wcoords_translate(object.x + object.hitbox_width, object.y)[0], wcoords_translate(object.x, object.y)[1], 0.0, 1.0,
+                                                                wcoords_translate(object.x + object.hitbox_width, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
                                                                 ], dtype='f4')   
                     vao.render(mode=moderngl.TRIANGLE_STRIP)
 
@@ -620,5 +678,5 @@ while True:
     pygame.display.flip()
     dt = clock.tick_busy_loop(60) / 1000 # dt is time it takes for one frame
  
-    if player.health <= 0 and attack_timer.time(): # <--- DEBUG DEBUG DEBUG
-        exit() 
+    if player.health <= 0 and attack_timer.time(): # <--- DEBUG
+        reset_game()

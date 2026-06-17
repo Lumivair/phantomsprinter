@@ -1,7 +1,13 @@
-floor 0 1
-box 11 6
-compass 8 6
-box2x 13 3
-wall3 0 16
-3x2_a 6 3
-3x2_b 8 2
+default_back_wall 0 16 {layer=3;collision=false}
+brick_16x1 0 1
+brick_16x1 0 16
+wall_1x11 0 15
+stone_3x1 3 6
+stone_2x1_2 1 11
+stone_2x1_1 7 9
+stone_4x1 7 13
+rusted_metal_1x1 10 14
+stone_9x9 11 10
+stone_3x2 6 3
+
+block_8 0 3 {layer=3;collision=false}
