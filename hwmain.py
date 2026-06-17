@@ -10,6 +10,20 @@ from PIL import Image
 # =========================
 # Functions
 # =========================
+def debug_attack_hitbox_render():
+    if object.facing == "right":
+        program["transform_matrix"].value = np.array([(object.attack_hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
+                                                0.0, (object.attack_hitbox_height * screen_ratio[1]), 0.0, 0.0,
+                                                0.0, 0.0, 1.0, 0.0,
+                                                wcoords_translate(object.x, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
+                                                ], dtype='f4')   
+    else:
+        program["transform_matrix"].value = np.array([(- object.attack_hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
+                                                0.0, (object.attack_hitbox_height * screen_ratio[1]), 0.0, 0.0,
+                                                0.0, 0.0, 1.0, 0.0,
+                                                wcoords_translate(object.x + object.hitbox_width, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
+                                                ], dtype='f4')   
+    vao.render(mode=moderngl.TRIANGLE_STRIP)
 def exit():
     print("[Info]", datetime.datetime.now().strftime("%y-%m-%d %H:%M:%S:"),"Game successfully closed") # exit with success message
     pygame.quit()
@@ -20,7 +34,7 @@ def layer_sort(object):
 
 def reset_game():
     global player, objects, loaded_chunks, camera, debug, attack_timer, new_chunks
-    player = Player(7, 5, textures["player_atlas"], 0.6, 1.75, "hanspeter")
+    player = Player(7, 5, textures["player_atlas"], 0.6, 1.84375, "hanspeter")
     debug_sky = Background(0, 0, textures["debug_sky"], {"layer":"4","collision":"false","parallax":"0"})
     debug_towers = Background(0, 0.25, textures["debug_towers"], {"layer":"4","collision":"false","parallax":"0.05"})
     debug_mountains = Background(0, 0.25, textures["debug_mountains"], {"layer":"4","collision":"false","parallax":"0.06"})
@@ -172,7 +186,6 @@ class Environment:
 class Background(Environment):
     def __init__(self, x, y, texture, attribute_dict):
         super().__init__(x, y, texture, attribute_dict)
-        self.test = "yay"
     
 class Entity:
     def __init__(self, x, y, texture, width, height):
@@ -192,15 +205,9 @@ class Entity:
         self.facing = "right"
         self.attributes = {"collision": "false", "layer" : "2", "gravity": "true"}
         self.currentanimation = "static"
-        self.animation = {
-            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x, repeating
-            "static" : [True, 0, 42, 1, self.texture.width, 0, Timer(5), 59, 59, self.facing, 0,],
-            "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 12), 53, 59, self.facing, -0.75,],
-            "attack" : [True, 871, 119, 8, self.texture.width, 1, Timer(1 / 24), 59, 59, self.facing, -1.5,],
-        }
 
     def uv_coords(self):
-        if self.currentanimation == "attack":
+        if self.currentanimation == "static_attack":
             if self.animation[self.currentanimation][5] == 0:
                 self.animation[self.currentanimation][5] = 1
                 self.currentanimation = "static"
@@ -210,10 +217,11 @@ class Entity:
         else:
             self.animation["static"][10] = -0.6
         self.width = self.animation[self.currentanimation][2] / 32
+        self.height = ((self.animation[self.currentanimation][7] / 32) / self.hitbox_height) * self.hitbox_height
         return get_uv_coords(self.animation[self.currentanimation])
         
     def scoords(self):
-        return wcoords_translate(self.x + self.animation[self.currentanimation][10], self.y, 1)
+        return wcoords_translate(self.x + self.animation[self.currentanimation][10], self.y + self.animation[self.currentanimation][11], 1)
         
     def chunk(self):
         return chunk_translate(self.x, self.y)
@@ -247,13 +255,45 @@ class Player(Entity):
     def __init__(self, x, y, texture, width, height, name):
         super().__init__(x, y, texture, width, height) 
         self.name = name
+        self.animation = {
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x, offset y repeating
+            "static" : [True, 0, 42, 1, self.texture.width, 0, Timer(5), 59, 69, self.facing, 0, 0],
+            "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 12), 53, 69, self.facing, -0.75, -6/32],
+            "static_attack" : [True, 871, 119, 8, self.texture.width, 1, Timer(1 / 24), 59, 69, self.facing, -1.5, 0],
+            "walking_attack" : [True, 1823, 106, 6, self.texture.width, 1, Timer(1 / 12), 69, 69, self.facing, -1.4, 10/32],
+        }
     def damage(self, amount):
         self.health -= amount
+    def uv_coords(self):
+        if self.currentanimation == "static_attack":
+            if self.animation[self.currentanimation][5] == 0:
+                self.animation[self.currentanimation][5] = 1
+                self.currentanimation = "static"
+        elif self.currentanimation == "walking_attack":
+            if self.animation[self.currentanimation][5] == 0:
+                self.animation[self.currentanimation][5] = 1
+                self.currentanimation = "walking"
+        self.animation[self.currentanimation][9] = self.facing
+        if self.facing == "left": # <---- this is shit
+            self.animation["static"][10] = -0.1
+            self.animation["walking_attack"][10] = -1.62
+        else:
+            self.animation["static"][10] = -0.6
+            self.animation["walking_attack"][10] = -1.095
+        self.width = self.animation[self.currentanimation][2] / 32
+        self.height = ((self.animation[self.currentanimation][7] / 32) / self.hitbox_height) * self.hitbox_height
+        return get_uv_coords(self.animation[self.currentanimation])
 
 class Enemy(Entity):
     def __init__(self, x, y, texture, width, height, attributes):
         super().__init__(x, y, texture, width, height) 
         self.attributes = attributes
+        self.animation = {
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x,
+            "static" : [True, 0, 42, 1, self.texture.width, 0, Timer(5), 59, 69, self.facing, 0, 0],
+            "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 12), 53, 69, self.facing, -0.75, -6/32],
+            "static_attack" : [True, 871, 119, 8, self.texture.width, 1, Timer(1 / 24), 59, 69, self.facing, -1.5, 0],
+        }
     def damage(self, amount):
         self.health -= amount
         if self.health <= 0:
@@ -430,7 +470,7 @@ assets = {
     "debug_box": ("assets/debug/box.png",),
 
     #player
-    "player_atlas": ("assets/entities/player/player_atlas.png",),
+    "player_atlas": ("assets/entities/player/player_atlas_test.png",),
 
     #terrain
     "brick_16x1": ("assets/environment/terrain/brick_16x1.png",),
@@ -530,33 +570,46 @@ while True:
             if event.key == pygame.K_F4:
                 player.noclip = not player.noclip
             if event.key == pygame.K_SPACE and player.currentanimation == "static":
-                    player.currentanimation = "attack"
+                    player.currentanimation = "static_attack"
                     player.attack()
-            # if event.key == pygame.K_f and debug_enemy.currentanimation == "static":
-            #     debug_enemy.currentanimation = "attack"
-            #     debug_enemy.attack()
+            if event.key == pygame.K_SPACE and player.currentanimation == "walking":
+                player.currentanimation = "walking_attack"
+                player.attack()
 
     for object in objects:
         if isinstance(object, Entity):
-            if not object.currentanimation == "attack":
+            if object.currentanimation == "walking":
                 object.currentanimation = "static"
+            
     key_pressed=pygame.key.get_pressed()
-    if key_pressed[pygame.K_RIGHT]:
+    if key_pressed[pygame.K_RIGHT] and key_pressed[pygame.K_LEFT]:
+        pass
+    elif key_pressed[pygame.K_RIGHT]:
         player.x += 0.1
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[1] - player.hitbox_width
-        elif not player.currentanimation == "attack":
+        elif player.currentanimation == "static":
             player.facing = "right"
             player.currentanimation = "walking"
-            player.animation["attack"][5] = 1
-    if key_pressed[pygame.K_LEFT]:
+        elif player.currentanimation == "walking_attack" and player.animation["walking_attack"][5] > 3 and player.facing == "left":
+            player.facing = "right"
+            player.currentanimation = "walking"
+            player.animation["walking_attack"][5] = 1
+    elif key_pressed[pygame.K_LEFT]:
         player.x -= 0.1
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[2]
-        elif not player.currentanimation == "attack":
+        elif player.currentanimation == "static":
             player.facing = "left"
             player.currentanimation = "walking"
-            player.animation["attack"][5] = 1
+            # player.animation["static_attack"][5] = 1
+        elif player.currentanimation == "walking_attack" and player.animation["walking_attack"][5] > 3 and player.facing == "right":
+            player.facing = "left"
+            player.currentanimation = "walking"
+            player.animation["walking_attack"][5] = 1
+    elif player.currentanimation == "walking_attack" and player.animation["walking_attack"][5] > 3:
+            player.currentanimation = "static"
+            player.animation["walking_attack"][5] = 1
     if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
         player.jumping = True
         player.y_velocity = 0.25
@@ -583,9 +636,9 @@ while True:
                         object.x -= 0.05
                         if object.collide()[0] and not object.noclip:
                             object.x = object.collide()[2]
-                        elif not object.currentanimation == "attack":
+                        elif not object.currentanimation == "static_attack":
                             object.currentanimation = "walking"
-                            object.animation["attack"][5] = 1
+                            object.animation["static_attack"][5] = 1
                             attack_timer.timer = 0
                 elif object.x < player.x and attack_timer.timer == 0:
                     object.facing = "right"
@@ -593,13 +646,13 @@ while True:
                         object.x += 0.05
                         if object.collide()[0] and not object.noclip:
                             object.x = object.collide()[1] - object.hitbox_width
-                        elif not object.currentanimation == "attack":
+                        elif not object.currentanimation == "static_attack":
                             object.currentanimation = "walking"
-                            object.animation["attack"][5] = 1
+                            object.animation["static_attack"][5] = 1
                             attack_timer.timer = 0
                 if abs(object.x - player.x) <= 1.5 and object.currentanimation == "static" or not attack_timer.timer == 0:
                     if attack_timer.time():
-                        object.currentanimation = "attack"
+                        object.currentanimation = "static_attack"
                         object.attack()
 
     # COLLISIONS
@@ -658,21 +711,16 @@ while True:
                 vao.render(mode=moderngl.TRIANGLE_STRIP)
 
                 textures["debug_attack"].bind()
-                if not object.animation["attack"][5] == 1:
-                    if object.facing == "right":
-                        program["transform_matrix"].value = np.array([(object.attack_hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
-                                                                0.0, (object.attack_hitbox_height * screen_ratio[1]), 0.0, 0.0,
-                                                                0.0, 0.0, 1.0, 0.0,
-                                                                wcoords_translate(object.x, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
-                                                                ], dtype='f4')   
-                    else:
-                        program["transform_matrix"].value = np.array([(- object.attack_hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
-                                                                0.0, (object.attack_hitbox_height * screen_ratio[1]), 0.0, 0.0,
-                                                                0.0, 0.0, 1.0, 0.0,
-                                                                wcoords_translate(object.x + object.hitbox_width, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
-                                                                ], dtype='f4')   
-                    vao.render(mode=moderngl.TRIANGLE_STRIP)
 
+                try:
+                    if not object.animation["walking_attack"][5] == 1:
+                        debug_attack_hitbox_render()
+                except:
+                    pass
+
+                if not object.animation["static_attack"][5] == 1:
+                    debug_attack_hitbox_render()
+                    
     postprocessing.render()
     debug.render()
     pygame.display.flip()
