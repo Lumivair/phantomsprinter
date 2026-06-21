@@ -24,6 +24,7 @@ def debug_attack_hitbox_render():
                                                 wcoords_translate(object.x + object.hitbox_width, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
                                                 ], dtype='f4')   
     vao.render(mode=moderngl.TRIANGLE_STRIP)
+    
 def exit():
     print("[Info]", datetime.datetime.now().strftime("%y-%m-%d %H:%M:%S:"),"Game successfully closed") # exit with success message
     pygame.quit()
@@ -33,7 +34,7 @@ def layer_sort(object):
     return object.attributes["layer"]
 
 def reset_game():
-    global player, objects, loaded_chunks, camera, debug, attack_timer, new_chunks
+    global player, objects, loaded_chunks, camera, debug, attack_timer, new_chunks, debug_sky, debug_towers, debug_mountains
     player = Player(7, 5, textures["player_atlas"], 0.6, 1.84375, "hanspeter")
     debug_sky = Background(0, 0, textures["debug_sky"], {"layer":"4","collision":"false","parallax":"0"})
     debug_towers = Background(0, 0.25, textures["debug_towers"], {"layer":"4","collision":"false","parallax":"0.05"})
@@ -52,7 +53,7 @@ def set_screen_ratio():
         screen_height = screen_size[1]
         ratio_multiplier = math.sqrt(144/(screen_width * screen_height))
         screen_ratio = [(1 / (screen_width * ratio_multiplier) * 2), (1 / (screen_height * ratio_multiplier) * 2)]
-        camera_ratio = [(screen_width * ratio_multiplier) / 2 - 0.5, (screen_height * ratio_multiplier) / 2 + 0.75]
+        camera_ratio = [(screen_width * ratio_multiplier) / 2, (screen_height * ratio_multiplier) / 2]
 
 def wcoords_translate(x, y, parallax_factor):
     return[((x - camera.wcoord_x * float(parallax_factor)) * screen_ratio[0]) - 1, ((y - camera.wcoord_y * float(parallax_factor)) * screen_ratio[1]) + 1]
@@ -89,10 +90,11 @@ def update_loaded_chunks():
                         except IndexError:
                             parameter_dict = {"layer": "1", "parallax": "1"} # default parameters
                         try:
-                            if line[0] not in enemies:
-                                objects.append(Environment(float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict))
+                            if line[0] in enemies:
+                                # print((float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], enemies[line[0]][0], parameter_dict))
+                                objects.append(enemies[line[0]][0](float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], *enemies[line[0]][1], parameter_dict))
                             else:
-                                objects.append(Enemy(int(line[1]) + 16 * chunk[0], int(line[2]) + 16 * chunk[1], *enemies[line[0]], parameter_dict))
+                                objects.append(Environment(float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict))   
                         except:
                             if len(line) == 0 or line[0].startswith("#"):
                                 pass
@@ -124,10 +126,13 @@ def get_uv_coords(parameter_list):
                 left_add = uv_width
         except:
             pass
-        if parameter_list[6].time():
-            parameter_list[5] += 1
-        if parameter_list[5] >= frames: #TODO fix this whole thing where all the first frames in animation are not actually the first and are completely cooked
-            parameter_list[5] = 0
+        try: 
+            if parameter_list[6].time():
+                parameter_list[5] += 1
+            if parameter_list[5] >= frames: #TODO fix this whole thing where all the first frames in animation are not actually the first and are completely cooked
+                parameter_list[5] = 0
+        except AttributeError:
+            pass
         if frames == 1:
             return [uv_x + left_add, uv_width * left_multi, 1.0, uv_height]
         else:
@@ -169,6 +174,7 @@ class Environment:
         self.y = y
         self.width = texture.width / 32 / texture.frames + 0.005
         self.height = texture.height / 32 + 0.005
+        self.rotation = 0
         self.texture = texture
         self.attributes = attribute_dict
         try:
@@ -197,6 +203,7 @@ class Entity:
         self.health = 1
         self.width = width
         self.height = height
+        self.rotation = 0
         self.hitbox_width = width
         self.hitbox_height = height
         self.attack_hitbox_width = 2.2
@@ -256,8 +263,8 @@ class Player(Entity):
         super().__init__(x, y, texture, width, height) 
         self.name = name
         self.animation = {
-            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x, offset y repeating
-            "static" : [True, 0, 42, 1, self.texture.width, 0, Timer(5), 59, 69, self.facing, 0, 0],
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x, offset y
+            "static" : [True, 0, 42, 1, self.texture.width, 0, None, 59, 69, self.facing, 0, 0],
             "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 12), 53, 69, self.facing, -0.75, -6/32],
             "static_attack" : [True, 871, 119, 8, self.texture.width, 1, Timer(1 / 24), 59, 69, self.facing, -1.5, 0],
             "walking_attack" : [True, 1823, 106, 6, self.texture.width, 1, Timer(1 / 12), 69, 69, self.facing, -1.4, 10/32],
@@ -298,13 +305,181 @@ class Enemy(Entity):
         self.health -= amount
         if self.health <= 0:
             objects.remove(self)
+
+class PistolEnemy(Enemy):
+    def __init__(self, x, y, texture, width, height, attributes):
+        super().__init__(x, y, texture, width, height, attributes) 
+        self.angle = 0
+        self.distance = 0
+        self.activation_range = 8
+        self.shooting_range = 5
+        self.shooting_timer = Timer(1)
+        self.animation = {
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x,
+            "static" : [True, 444, 34, 1, self.texture.width, 0, None, 60, 60, self.facing, 0, 0],
+            "walking" : [True, 0, 37, 12, self.texture.width, 0, Timer(1 / 12), 59, 60, self.facing, -0.3, -2/32],
+            "draw" : [True, 444, 34, 5, self.texture.width, 0, Timer(1 / 12), 60, 60, self.facing, 0, 0],
+            "aim" : [True, 614, 34, 6, self.texture.width, 0, None, 60, 60, self.facing, 0, 0],
+        }
+        self.angle_list = [
+                        (-0.3, -2, 0, 0.7, 0.7),
+                        (-0.1, -0.3, 1, 0.7, 0.62),
+                        (0.1, -0.1, 2, 0.8, 0.4),
+                        (0.6, 0.1, 3, 0.8, 0.32),
+                        (1, 0.6, 4, 0.7, 0.22),
+                        (2, 1, 5, 0.62, 0.15)
+                        ]
+
+    def uv_coords(self):
+        self.animation[self.currentanimation][9] = self.facing
+        if self.facing == "left": # <---- this is shit
+            self.animation["static"][10] = -0.4
+            self.animation["aim"][10] = -0.4
+            self.animation["draw"][10] = -0.4
+        else:
+            self.animation["static"][10] = -0.06
+            self.animation["aim"][10] = -0.06
+            self.animation["draw"][10] = -0.06
+        self.width = self.animation[self.currentanimation][2] / 32
+        self.height = ((self.animation[self.currentanimation][7] / 32) / self.hitbox_height) * self.hitbox_height
+        return get_uv_coords(self.animation[self.currentanimation])
+    
+    def ai(self):
+        self.distance = abs(math.sqrt((object.x - player.x) ** 2 + (object.y - player.y) ** 2))
+        try:
+            self.angle = math.atan((player.y - self.y) / abs(player.x - self.x))
+        except ZeroDivisionError:
+            pass
+        if self.distance <= self.activation_range:
+            if self.x > player.x:
+                self.facing = "left"
+                if self.x > player.x + self.shooting_range:
+                    self.x -= 0.03
+                    if self.collide()[0]:
+                        self.x = object.collide()[2]
+                        self.currentanimation = "static"
+                    else:
+                        self.currentanimation = "walking"
+            elif self.x < player.x:
+                self.facing = "right"
+                if self.x < player.x - self.shooting_range:
+                    self.x += 0.03
+                    if self.collide()[0]:
+                        self.x = object.collide()[1] - self.hitbox_width
+                        self.currentanimation = "static"
+                    else:
+                        self.currentanimation = "walking"
+            if not self.currentanimation == "walking":
+                self.currentanimation = "draw"
+                if self.animation["draw"][5] >= 4:
+                    self.currentanimation = "aim"
+                    for list in self.angle_list:
+                        if self.angle < list[0] and self.angle > list[1]:
+                            self.animation["aim"][5] = list[2]
+                    if self.shooting_timer.time() and self.angle > -0.7 and self.angle < 1.3:
+                        self.shoot()
+            else:
+                object.animation["draw"][5] = 0
+                self.shooting_timer.timer = 0.8
+    def shoot(self):
+        print(self.angle)
+        if self.facing == "right":
+            objects.append(Projectile(self.x + self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], self.angle, 0.1, textures["bullet"]))
+        else:
+            objects.append(Projectile(self.x + 0.5 - self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], -self.angle + math.pi, 0.1, textures["bullet"])) # radians done with chatgpt
+
+class Projectile:
+    def __init__(self, x, y, angle, speed, texture):
+        self.x = x
+        self.y = y 
+        self.angle = angle
+        self.speed = speed
+        self.texture = texture 
+        self.width = texture.width / 32
+        self.height = texture.height / 32
+        self.rotation = angle
+        self.hitbox_width = 1/ 32
+        self.hitbox_height = 1 / 32
+        self.attributes = {"layer" : "3", "collision" : "false"}
+        self.despawn_timer = Timer(10)
+
+    def scoords(self):
+        return wcoords_translate(self.x, self.y, 1)
+
+    def uv_coords(self):
+        return get_uv_coords([False])
+    
+    def collide(self):
+        for object in objects:
+            if object.attributes.get("collision") == "true" or object.attributes.get("collision") == None:
+                if not object.texture.custom_hitbox == None:
+                    with open(object.texture.custom_hitbox) as custom_hitbox:
+                        for line in custom_hitbox:
+                            line = line.strip()
+                            line = line.split()
+                            #line: x1, y1 -> x2, y2
+                            if self.x + self.hitbox_width > object.x + float(line[0]) and self.x < object.x + float(line[2]) and self.y < object.y + self.hitbox_height - float(line[1]) and self.y > object.y - float(line[3]):
+                                return [True, False]
+                elif self.x + self.hitbox_width > object.x and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
+                    return [True, False]
+            elif object.__class__ == Player:
+                if self.x + self.hitbox_width > object.x and self.x < object.x + object.hitbox_width and self.y < object.y + self.hitbox_height and self.y > object.y - object.hitbox_height:
+                    return [True, True]
+        return [False, False]
+    
+    def move(self):
+        self.x += math.cos(self.angle) * self.speed
+        self.y += math.sin(self.angle) * self.speed
+        if self.collide()[0]:
+            if self.collide()[1]:
+                player.damage(1)
+            objects.remove(self)
+        if self.despawn_timer.time():
+            objects.remove(self)
+
 class Camera:
     def __init__(self):
-        self.wcoord_x = 0
-        self.wcoord_y = 0
-    def update(self):
         self.wcoord_x = player.x - camera_ratio[0]
         self.wcoord_y = player.y + camera_ratio[1]
+        self.target_x = player.x - camera_ratio[0]
+        self.target_y = player.y + camera_ratio[1]
+    def update(self):
+        print(self.wcoord_x - self.target_x)
+        if abs(self.wcoord_x - self.target_x) < 0.05:
+            self.wcoord_x = self.wcoord_x - (self.wcoord_x - self.target_x) * 0.25
+        else:
+            self.wcoord_x = self.wcoord_x - (self.wcoord_x - self.target_x) * 0.1
+        if abs(self.wcoord_x - self.target_x) < 0.05:
+            self.wcoord_y = self.wcoord_y - (self.wcoord_y - self.target_y) * 0.35
+        else:
+            self.wcoord_y = self.wcoord_y - (self.wcoord_y - self.target_y) * 0.2
+        self.target_x = player.x - camera_ratio[0]
+        self.target_y = player.y + camera_ratio[1]
+        #x,y -> x,y
+        border_list = [(0, 16, 0, 0), (16, 16, 56, 16), (0, 0, 80, 1), (80, 32, 80, 0)]
+        for t in border_list:
+            blocked = []
+            if self.target_y > t[3]:
+                blocked.append("up")
+            if self.target_y < t[1] + 2 * camera_ratio[1]:
+                blocked.append("down")
+            if self.target_x + 2 * camera_ratio[0] > t[0]:
+                blocked.append("left")
+            if self.target_x < t[2]:
+                blocked.append("right")
+
+            if "left" in blocked and "right" in blocked and self.target_y > t[3] and self.target_y < t[3] + camera_ratio[1]:
+                self.target_y = t[3]
+            elif "left" in blocked and "right" in blocked and self.target_y < t[1] + 2 * camera_ratio[1] and self.target_y > t[1] + camera_ratio[1]:
+                self.target_y = t[1] + 2 * camera_ratio[1]
+
+            elif "up" in blocked and "down" in blocked and self.target_x + 2 * camera_ratio[0] > t[0] and self.target_x < t[0] - camera_ratio[0]:
+                self.target_x = t[0] - 2 * camera_ratio[0]
+            elif "up" in blocked and "down" in blocked and self.target_x < t[2] and self.target_x > t[2] - camera_ratio[0]:
+                self.target_x = t[2]
+
+            # print(blocked)
+
 class Debug:
     def __init__(self):
         self.enabled = False
@@ -404,7 +579,6 @@ class PostProcessing:
             uniform float smoothness;
             uniform sampler2D tex;
             in vec2 v_uv;
-            out vec4 fragColor;
 
             void main() {
             float dist = distance(gl_FragCoord.xy, center);
@@ -412,7 +586,7 @@ class PostProcessing:
             float alpha = mix(0.0, 0.5, (dist / smoothness)) + (0.005 * noise);
             vec3 screen_color = texture(tex, v_uv).rgb;
             vec3 vignette_color = vec3(alpha, alpha, alpha);
-            fragColor = vec4((screen_color - vignette_color), 1.0);
+            gl_FragColor = vec4((screen_color - vignette_color), 1.0);
             }
             ''',
             )
@@ -449,7 +623,8 @@ fbo = ctx.framebuffer(color_attachments=[ctx.texture((screen_width, screen_heigh
 postprocessing = PostProcessing()
 
 clock = pygame.time.Clock()
-debug_timer = Timer(0.1)
+debug_timer = Timer(5)
+ctrl = False
 
 # =========================
 # Game Objects
@@ -469,24 +644,38 @@ assets = {
     "debug_box2x": ("assets/debug/box2x.png",),
     "debug_box": ("assets/debug/box.png",),
 
-    #player
+    #entities
     "player_atlas": ("assets/entities/player/player_atlas_test.png",),
+    "pistol_enemy_atlas": ("assets/entities/enemies/pistol_enemy_atlas.png",),
+    "bullet": ("assets/entities/projectiles/bullet.png",),
 
     #terrain
     "brick_16x1": ("assets/environment/terrain/brick_16x1.png",),
     "brick_2x1": ("assets/environment/terrain/brick_2x1.png",),
-    "rusted_metal_1x1": ("assets/environment/terrain/rusted_metal_1x1.png",),
+    "brick_4x1": ("assets/environment/terrain/brick_4x1.png",),
     "stone_2x1_1": ("assets/environment/terrain/stone_2x1_1.png",),
     "stone_2x1_2": ("assets/environment/terrain/stone_2x1_2.png",),
     "stone_3x1": ("assets/environment/terrain/stone_3x1.png",),
     "stone_4x1": ("assets/environment/terrain/stone_4x1.png",),
-    "stone_4x2": ("assets/environment/terrain/stone_4x2.png",),
+    "stone_4x2_1": ("assets/environment/terrain/stone_4x2_1.png",),
+    "stone_4x2_2": ("assets/environment/terrain/stone_4x2_2.png",),
+    "stone_7x2": ("assets/environment/terrain/stone_7x2.png",),
+    "stone_6x2": ("assets/environment/terrain/stone_6x2.png",),
+    "stone_2x2": ("assets/environment/terrain/stone_2x2.png",),
+    "stone_5x1": ("assets/environment/terrain/stone_5x1.png",),
     "wall_1x11": ("assets/environment/terrain/wall_1x11.png",),
+    "wall_1x13": ("assets/environment/terrain/wall_1x13.png",),
     "wall_2x11": ("assets/environment/terrain/wall_2x11.png",),
     "wall_2x15": ("assets/environment/terrain/wall_2x15.png",),
+    "metal_cargo_2x2": ("assets/environment/terrain/metal_cargo_2x2.png",),
+    "rusted_metal_1x1_1": ("assets/environment/terrain/rusted_metal_1x1_1.png",),
+    "rusted_metal_1x1_2": ("assets/environment/terrain/rusted_metal_1x1_2.png",),
+    
     #custom hitbox
     "stone_9x9": ("assets/environment/terrain/stone_9x9.png", 1, 0, "assets/environment/terrain/stone_9x9.col"),
     "stone_3x2": ("assets/environment/terrain/stone_3x2.png", 1, 0, "assets/environment/terrain/stone_3x2.col"),
+    "stone_stair_2x2": ("assets/environment/terrain/stone_stair_2x2.png", 1, 0, "assets/environment/terrain/stone_stair_2x2.col"),
+    "wall_11x3": ("assets/environment/terrain/wall_11x3.png", 1, 0, "assets/environment/terrain/wall_11x3.col"),
 
     #decoration
     "lamp": ("assets/environment/decoration/lamp.png",),
@@ -503,15 +692,16 @@ assets = {
 
     #background
     "default_back_wall": ("assets/environment/background/default_back_wall.png",),
+    "lightmap_test": ("assets/environment/background/lightmap_test.png",),
 }
 
 textures = {}
 texture_load()
 
 enemies = {
-    "debug_enemy" : (textures["debug_enemy_atlas"], 0.6, 1.75)
+    "debug_enemy" : [Enemy, (textures["debug_enemy_atlas"], 0.6, 1.75,)],
+    "pistol_enemy" : [PistolEnemy, (textures["pistol_enemy_atlas"], 0.6, 1.875,)]
 }
-
 
 reset_game()
 
@@ -520,12 +710,12 @@ reset_game()
 # =========================
 # OpenGL main renderer
 # =========================
-vertex = np.array([ 0.0, 0.0, 0, 0, #topleft
-                    0.0,-1.0, 0, 1, #bottomleft
-                    1.0, 0.0, 1, 0, #topright
-                    1.0,-1.0, 1, 1, #bottomright
-                #x, y, u = width, v = height
-                ], dtype='f4')
+vertex = np.array([ -1.0, 1.0, 0, 0, #topleft
+                    -1.0,-1.0, 0, 1, #bottomleft
+                     1.0, 1.0, 1, 0, #topright
+                     1.0,-1.0, 1, 1, #bottomright
+                    #x, y, u = width, v = height
+                    ], dtype='f4')
 
 program = ctx.program(
     vertex_shader='''
@@ -536,17 +726,16 @@ program = ctx.program(
     uniform mat4 transform_matrix;
     uniform mat3 uv_transform_matrix;
     void main() {
-    gl_Position = transform_matrix * vec4(position, 0.0, 1.0);
+    gl_Position = vec4(position, 0.0, 1.0) * transform_matrix;
     v_uv = (uv_transform_matrix * vec3(uv, 1.0)).xy;
     }
     ''',
     fragment_shader='''
     #version 330 core
     in vec2 v_uv;
-    out vec4 Colour;
     uniform sampler2D tex;
     void main() {
-    Colour = texture(tex, v_uv);
+    gl_FragColor = texture(tex, v_uv);
     }
     ''',
 )
@@ -569,6 +758,11 @@ while True:
                 debug.enabled = not debug.enabled
             if event.key == pygame.K_F4:
                 player.noclip = not player.noclip
+            if event.key == pygame.K_r and ctrl:
+                print("Reloading...")
+                objects = [player, debug_sky, debug_towers, debug_mountains]
+                loaded_chunks = []
+
             if event.key == pygame.K_SPACE and player.currentanimation == "static":
                     player.currentanimation = "static_attack"
                     player.attack()
@@ -582,6 +776,10 @@ while True:
                 object.currentanimation = "static"
             
     key_pressed=pygame.key.get_pressed()
+    if key_pressed[pygame.K_LCTRL]:
+        ctrl = True
+    else:
+        ctrl = False
     if key_pressed[pygame.K_RIGHT] and key_pressed[pygame.K_LEFT]:
         pass
     elif key_pressed[pygame.K_RIGHT]:
@@ -623,10 +821,12 @@ while True:
     if player.y < -25:
         exit()
 
+    
+
     # UPDATE CHUNKS
     update_loaded_chunks()
 
-    # ENEMY AI
+    # ENEMY AI (debug)
     for object in objects:
         if object.__class__ == Enemy:
             if abs(object.x - player.x) < 6:
@@ -654,6 +854,13 @@ while True:
                     if attack_timer.time():
                         object.currentanimation = "static_attack"
                         object.attack()
+    
+    for object in objects:
+        if object.__class__ == PistolEnemy:
+            object.ai()
+        if object.__class__ == Projectile:
+            object.move()
+            
 
     # COLLISIONS
     for object in objects:
@@ -687,25 +894,25 @@ while True:
                                                             uv_coords[0], uv_coords[2], 1.0,
                                                             ], dtype='f4')
             scoords = object.scoords()
-            program["transform_matrix"].value = np.array([(object.width * screen_ratio[0]), 0.0, 0.0, 0.0,
-                                                        0.0, (object.height * screen_ratio[1]), 0.0, 0.0,
-                                                        0.0, 0.0, 1.0, 0.0,
-                                                        scoords[0], scoords[1], 0.0, 1.0,
+            program["transform_matrix"].value = np.array([object.width * screen_ratio[0] * 0.5 * math.cos(object.rotation), -object.height * screen_ratio[0] * 0.5 * math.sin(object.rotation), 0.0, scoords[0] + (object.width * screen_ratio[0] / 2),
+                                                          object.width * screen_ratio[1] * 0.5 * math.sin(object.rotation), object.height * screen_ratio[1] * 0.5 * math.cos(object.rotation), 0.0, scoords[1] - (object.height * screen_ratio[1] / 2),
+                                                          0.0, 0.0, 1.0, 0.0,
+                                                          0.0, 0.0, 0.0, 1.0,
                                                         ], dtype='f4')
 
             vao.render(mode=moderngl.TRIANGLE_STRIP)
 
     if debug.enabled: # this whole thing is ugly as fuck:
         for object in objects:
-            if object.__class__ == Player or object.__class__ == Enemy:
+            if isinstance(object, Entity):
                 program["uv_transform_matrix"].value = np.array([1.0, 0.0, 0.0,
                                                                 0.0, 1.0, 0.0, 
                                                                 0.0, 0.0, 1.0,
                                                             ], dtype='f4')
-                program["transform_matrix"].value = np.array([(object.hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
-                                                        0.0, (object.hitbox_height * screen_ratio[1]), 0.0, 0.0,
+                program["transform_matrix"].value = np.array([object.hitbox_width * screen_ratio[0] * 0.5, 0.0, 0.0, wcoords_translate(object.x, object.y, 1)[0] + (object.hitbox_width * screen_ratio[0] / 2),
+                                                        0.0, object.hitbox_height * screen_ratio[1] * 0.5, 0.0, wcoords_translate(object.x, object.y, 1)[1] - (object.hitbox_height * screen_ratio[1] / 2),
                                                         0.0, 0.0, 1.0, 0.0,
-                                                        wcoords_translate(object.x, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
+                                                        0.0, 0.0, 0.0, 1.0,
                                                         ], dtype='f4')   
                 textures["debug_player"].bind()
                 vao.render(mode=moderngl.TRIANGLE_STRIP)
@@ -717,14 +924,18 @@ while True:
                         debug_attack_hitbox_render()
                 except:
                     pass
+                try:
+                    if not object.animation.get["static_attack"][5] == 1:
+                        debug_attack_hitbox_render()
+                except:
+                    pass
 
-                if not object.animation["static_attack"][5] == 1:
-                    debug_attack_hitbox_render()
-                    
     postprocessing.render()
     debug.render()
     pygame.display.flip()
     dt = clock.tick_busy_loop(60) / 1000 # dt is time it takes for one frame
+
+    # print(math.atan(5 / 5))
  
     if player.health <= 0 and attack_timer.time(): # <--- DEBUG
         reset_game()

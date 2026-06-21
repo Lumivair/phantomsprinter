@@ -1,0 +1,2 @@
+default_back_wall 0 16 {layer=3;collision=false}
+brick_16x1 0 1
