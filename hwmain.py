@@ -34,24 +34,25 @@ def layer_sort(object):
     return object.attributes["layer"]
 
 def reset_game():
-    global player, objects, loaded_chunks, camera, debug, attack_timer, new_chunks, debug_sky, debug_towers, debug_mountains
+    global player, objects, loaded_chunks, camera, debug, attack_timer, new_chunks, debug_sky, debug_towers, debug_mountains, unticked_chunks
     player = Player(7, 5, textures["player_atlas"], 0.6, 1.84375, "hanspeter")
-    debug_sky = Background(0, 0, textures["debug_sky"], {"layer":"4","collision":"false","parallax":"0"})
-    debug_towers = Background(0, 0.25, textures["debug_towers"], {"layer":"4","collision":"false","parallax":"0.05"})
-    debug_mountains = Background(0, 0.25, textures["debug_mountains"], {"layer":"4","collision":"false","parallax":"0.06"})
+    debug_sky = Background(0, 0, textures["debug_sky"], {"layer":"4","collision":"false","parallax":"0"}, None)
+    debug_towers = Background(0, 0.25, textures["debug_towers"], {"layer":"4","collision":"false","parallax":"0.05"}, None)
+    debug_mountains = Background(0, 0.25, textures["debug_mountains"], {"layer":"4","collision":"false","parallax":"0.06"}, None)
     objects = [player, debug_sky, debug_towers, debug_mountains]
     loaded_chunks = []
+    unticked_chunks = []
     camera = Camera()
     debug = Debug()
     attack_timer = Timer(0.3)
     new_chunks = [] 
 
-def set_screen_ratio():
+def set_screen_ratio(view):
         global screen_ratio, camera_ratio, screen_width, screen_height
         screen_size = pygame.display.get_window_size()
         screen_width = screen_size[0]
         screen_height = screen_size[1]
-        ratio_multiplier = math.sqrt(144/(screen_width * screen_height))
+        ratio_multiplier = math.sqrt(view/(screen_width * screen_height))
         screen_ratio = [(1 / (screen_width * ratio_multiplier) * 2), (1 / (screen_height * ratio_multiplier) * 2)]
         camera_ratio = [(screen_width * ratio_multiplier) / 2, (screen_height * ratio_multiplier) / 2]
 
@@ -61,18 +62,35 @@ def wcoords_translate(x, y, parallax_factor):
 def chunk_translate(x, y):
     return [math.floor(x / 16), math.floor(y / 16)]
 
-def update_loaded_chunks():
-    def get_parameters(parameters):
+def get_parameters(parameters):
         parameters = parameters.strip("{}")
         parameters = parameters.split(";")
         parameter_dict = {}
         for i in range(len(parameters)):
             parameter_dict.update({parameters[i].split("=")[0]: parameters[i].split("=")[1]})
         return parameter_dict
+
+def update_loaded_chunks():
     new_chunks = []
-    new_chunks.append(player.chunk())
-    new_chunks.append([player.chunk()[0] + 1, player.chunk()[1]])
-    new_chunks.append([player.chunk()[0] -1 , player.chunk()[1]]) # TODO if bored, make it smarter and not just all chunks next to player
+    for width in range(-1, 2):
+        for height in range(-1, 2):
+            new_chunks.append([player.chunk()[0] + width, player.chunk()[1] + height]) # TODO if bored, make it smarter and not just all chunks next to player
+
+    # chunk unloader:
+    for object in objects:
+        if isinstance(object, Entity):
+            if object.chunk()[0] >= player.chunk()[0] + 2 or object.chunk()[0] <= player.chunk()[0] - 2 or object.chunk()[1] >= player.chunk()[1] + 2 or object.chunk()[1] <= player.chunk()[1] - 2:
+                object.ticking = False
+            else:
+                object.ticking = True
+        if object.__class__ == Environment:
+            if object.chunk[0] >= player.chunk()[0] + 2 or object.chunk[0] <= player.chunk()[0] - 2 or object.chunk[1] >= player.chunk()[1] + 2 or object.chunk[1] <= player.chunk()[1] - 2:
+                try:
+                    loaded_chunks.remove(object.chunk)
+                    unticked_chunks.append(object.chunk)
+                except ValueError:
+                    pass
+                objects.remove(object)
     # print("new:", new_chunks)
     # print("loaded:", loaded_chunks)
     for chunk in new_chunks:
@@ -91,10 +109,10 @@ def update_loaded_chunks():
                             parameter_dict = {"layer": "1", "parallax": "1"} # default parameters
                         try:
                             if line[0] in enemies:
-                                # print((float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], enemies[line[0]][0], parameter_dict))
-                                objects.append(enemies[line[0]][0](float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], *enemies[line[0]][1], parameter_dict))
+                                if chunk not in unticked_chunks:
+                                    objects.append(enemies[line[0]][0](float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], *enemies[line[0]][1], parameter_dict))
                             else:
-                                objects.append(Environment(float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict))   
+                                objects.append(Environment(float(line[1]) + 16 * chunk[0], float(line[2]) + 16 * chunk[1], textures[line[0]], parameter_dict, chunk))   
                         except:
                             if len(line) == 0 or line[0].startswith("#"):
                                 pass
@@ -102,6 +120,10 @@ def update_loaded_chunks():
                                 print("\033[91m[Error]", datetime.datetime.now().strftime("%y-%m-%d %H:%M:%S:"),f"Line {i + 1} in PhantomSprinter Mapping System chunk [{chunk[0]},{chunk[1]}] is corrupted.\033[0m")
                 new_chunks = []
             except FileNotFoundError:
+                pass
+            try:
+                unticked_chunks.remove(chunk)
+            except ValueError:
                 pass
 
 def texture_load():
@@ -169,7 +191,7 @@ class AssetManager:
         self.texture_raw.use(location=0)
 
 class Environment:
-    def __init__(self, x, y, texture, attribute_dict):
+    def __init__(self, x, y, texture, attribute_dict, chunk):
         self.x = x
         self.y = y
         self.width = texture.width / 32 / texture.frames + 0.005
@@ -177,6 +199,7 @@ class Environment:
         self.rotation = 0
         self.texture = texture
         self.attributes = attribute_dict
+        self.chunk = chunk
         try:
             self.animation_timer = Timer(1 / self.texture.fps)
             self.current_animation_frame = 0
@@ -190,8 +213,8 @@ class Environment:
         return get_uv_coords(self.animation)
 
 class Background(Environment):
-    def __init__(self, x, y, texture, attribute_dict):
-        super().__init__(x, y, texture, attribute_dict)
+    def __init__(self, x, y, texture, attribute_dict, chunk):
+        super().__init__(x, y, texture, attribute_dict, chunk)
     
 class Entity:
     def __init__(self, x, y, texture, width, height):
@@ -201,6 +224,7 @@ class Entity:
         self.jumping = False
         self.noclip = False
         self.health = 1
+        self.ticking = True
         self.width = width
         self.height = height
         self.rotation = 0
@@ -345,6 +369,8 @@ class PistolEnemy(Enemy):
         return get_uv_coords(self.animation[self.currentanimation])
     
     def ai(self):
+        if self.ticking == False:
+            return
         self.distance = abs(math.sqrt((object.x - player.x) ** 2 + (object.y - player.y) ** 2))
         try:
             self.angle = math.atan((player.y - self.y) / abs(player.x - self.x))
@@ -382,7 +408,6 @@ class PistolEnemy(Enemy):
                 object.animation["draw"][5] = 0
                 self.shooting_timer.timer = 0.8
     def shoot(self):
-        print(self.angle)
         if self.facing == "right":
             objects.append(Projectile(self.x + self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], self.angle, 0.1, textures["bullet"]))
         else:
@@ -444,7 +469,6 @@ class Camera:
         self.target_x = player.x - camera_ratio[0]
         self.target_y = player.y + camera_ratio[1]
     def update(self):
-        print(self.wcoord_x - self.target_x)
         if abs(self.wcoord_x - self.target_x) < 0.05:
             self.wcoord_x = self.wcoord_x - (self.wcoord_x - self.target_x) * 0.25
         else:
@@ -479,6 +503,9 @@ class Camera:
                 self.target_x = t[2]
 
             # print(blocked)
+            if debug.enabled:
+                self.target_x = player.x - camera_ratio[0]
+                self.target_y = player.y + camera_ratio[1]
 
 class Debug:
     def __init__(self):
@@ -618,7 +645,7 @@ pygame.display.set_icon(pygame.image.load("assets/debug/icon.png"))
 
 ctx = moderngl.create_context()
 ctx.enable(moderngl.BLEND) # add transparancy
-set_screen_ratio()
+set_screen_ratio(144)
 fbo = ctx.framebuffer(color_attachments=[ctx.texture((screen_width, screen_height), 4)])
 postprocessing = PostProcessing()
 
@@ -744,6 +771,8 @@ vbo = ctx.buffer(data=vertex)
 vao = ctx.vertex_array(program, [(vbo, '2f 2f', 'position', 'uv')])
 program["tex"] = 0
 
+debug_view = 144
+
 # =========================
 # Game Loop
 # =========================
@@ -753,6 +782,10 @@ while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             exit()
+        if event.type == pygame.MOUSEWHEEL and debug.enabled:
+            debug_view += event.y * -50
+            set_screen_ratio(debug_view)
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_F3:
                 debug.enabled = not debug.enabled
@@ -821,6 +854,10 @@ while True:
     if player.y < -25:
         exit()
 
+    if debug.enabled == False:
+        debug_view = 144
+        set_screen_ratio(debug_view)
+
     
 
     # UPDATE CHUNKS
@@ -865,7 +902,7 @@ while True:
     # COLLISIONS
     for object in objects:
         if isinstance(object, Entity):
-            if object.noclip == False:
+            if object.noclip == False and object.ticking:
                 object.y += object.y_velocity
                 if object.collide()[0] == True:
                     if object.y_velocity < 0: #fall collision

@@ -15,5 +15,5 @@ block_8 0 3 {layer=3;collision=false}
 
 lightmap_test 0 16 {layer=3;collision=false}
 
-#pistol_enemy 3 3 {layer=2;collision=false}
+pistol_enemy 3 3 {layer=2;collision=false}
 #debug_enemy 5 3 {layer=2;collision=false}
