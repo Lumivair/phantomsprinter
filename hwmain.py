@@ -46,6 +46,7 @@ def reset_game():
     debug = Debug()
     attack_timer = Timer(0.3)
     new_chunks = [] 
+    postprocessing.target_brightness = 1.0
 
 def set_screen_ratio(view):
         global screen_ratio, camera_ratio, screen_width, screen_height
@@ -270,6 +271,11 @@ class Entity:
                 elif self.x + self.hitbox_width > object.x and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
                     return [True, object.x, object.x + object.width, object.y, object.y - object.height]
         return [False, None]
+    def damage_collide(self):
+        for object in objects:
+            if object.attributes.get("damage") == "true":
+                if self.x + self.hitbox_width > object.x and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
+                    return True
     def attack(self):
         if self.facing == "right":
             for object in objects:
@@ -289,12 +295,19 @@ class Player(Entity):
         self.animation = {
             #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x, offset y
             "static" : [True, 0, 42, 1, self.texture.width, 0, None, 59, 69, self.facing, 0, 0],
-            "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 12), 53, 69, self.facing, -0.75, -6/32],
+            "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 16), 53, 69, self.facing, -0.75, -6/32],
             "static_attack" : [True, 871, 119, 8, self.texture.width, 1, Timer(1 / 24), 59, 69, self.facing, -1.5, 0],
             "walking_attack" : [True, 1823, 106, 6, self.texture.width, 1, Timer(1 / 12), 69, 69, self.facing, -1.4, 10/32],
         }
+        self.brightness_timer = Timer(1)
     def damage(self, amount):
         self.health -= amount
+    def death_update(self):
+        if player.health <= 0:
+            postprocessing.target_brightness = 0
+            if self.brightness_timer.time():
+                reset_game()
+            
     def uv_coords(self):
         if self.currentanimation == "static_attack":
             if self.animation[self.currentanimation][5] == 0:
@@ -408,6 +421,7 @@ class PistolEnemy(Enemy):
                 object.animation["draw"][5] = 0
                 self.shooting_timer.timer = 0.8
     def shoot(self):
+        pygame.mixer.Sound.play(bullet_sfx)
         if self.facing == "right":
             objects.append(Projectile(self.x + self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], self.angle, 0.1, textures["bullet"]))
         else:
@@ -587,6 +601,8 @@ class PostProcessing:
                                 #x, y,
                                 ], dtype='f4')
         self.vbo = ctx.buffer(data=self.quad)
+        self.brightness = 1.0
+        self.target_brightness = 1.0
         self.program = ctx.program(
             vertex_shader='''
             #version 330 core
@@ -605,6 +621,7 @@ class PostProcessing:
             uniform float radius;
             uniform float smoothness;
             uniform sampler2D tex;
+            uniform float brightness;
             in vec2 v_uv;
 
             void main() {
@@ -613,7 +630,7 @@ class PostProcessing:
             float alpha = mix(0.0, 0.5, (dist / smoothness)) + (0.005 * noise);
             vec3 screen_color = texture(tex, v_uv).rgb;
             vec3 vignette_color = vec3(alpha, alpha, alpha);
-            gl_FragColor = vec4((screen_color - vignette_color), 1.0);
+            gl_FragColor = vec4((screen_color - vignette_color), 1.0) * vec4(brightness, brightness, brightness, 1.0);
             }
             ''',
             )
@@ -628,6 +645,9 @@ class PostProcessing:
             self.program["smoothness"].value = 1.78125 * screen_width
         else: 
             self.program["smoothness"].value = 1.78125 * screen_height
+        
+        self.brightness += (self.target_brightness - self.brightness) * 0.05
+        self.program["brightness"].value = self.brightness
         self.vao.render(mode=moderngl.TRIANGLE_STRIP)
 
 # =========================
@@ -652,6 +672,10 @@ postprocessing = PostProcessing()
 clock = pygame.time.Clock()
 debug_timer = Timer(5)
 ctrl = False
+
+pygame.mixer.music.load("assets/sound/music/background_music.ogg")
+pygame.mixer.music.play(loops=1, fade_ms=2000)
+pygame.mixer.music.set_volume(0.1)
 
 # =========================
 # Game Objects
@@ -716,6 +740,8 @@ assets = {
     "burning_barrel_black": ("assets/environment/decoration/burning_barrel_black_atlas.png", 3, 6),
     "burning_barrel_red": ("assets/environment/decoration/burning_barrel_red_atlas.png", 3, 6),
     
+    #misc
+    "electricity": ("assets/environment/misc/electricity.png", 2, 4),
 
     #background
     "default_back_wall": ("assets/environment/background/default_back_wall.png",),
@@ -724,6 +750,8 @@ assets = {
 
 textures = {}
 texture_load()
+
+bullet_sfx = pygame.mixer.Sound("assets/sound/sfx/pulse-shot.wav")
 
 enemies = {
     "debug_enemy" : [Enemy, (textures["debug_enemy_atlas"], 0.6, 1.75,)],
@@ -904,6 +932,8 @@ while True:
         if isinstance(object, Entity):
             if object.noclip == False and object.ticking:
                 object.y += object.y_velocity
+                if object.damage_collide():
+                    player.damage(1)
                 if object.collide()[0] == True:
                     if object.y_velocity < 0: #fall collision
                         object.jumping = False
@@ -918,6 +948,9 @@ while True:
 
     # UPDATE CAMERA
     camera.update() # remove for static cam
+
+    # UPDATE PLAYER
+    player.death_update()
 
     # RENDERING
     fbo.use()
@@ -971,8 +1004,3 @@ while True:
     debug.render()
     pygame.display.flip()
     dt = clock.tick_busy_loop(60) / 1000 # dt is time it takes for one frame
-
-    # print(math.atan(5 / 5))
- 
-    if player.health <= 0 and attack_timer.time(): # <--- DEBUG
-        reset_game()
