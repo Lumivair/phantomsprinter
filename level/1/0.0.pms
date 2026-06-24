@@ -5,4 +5,4 @@ wall_2x11 14 15
 
 trashbags 1 5.5 {layer=3;collision=false}
 trashbags_large 2 1.9 {layer=3;collision=false}
-door_frame 15 4 {layer=3;collision=false}
+door_frame 15.1 4 {layer=3;collision=false}

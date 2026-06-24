@@ -656,7 +656,7 @@ class Camera:
         self.target_x = player.x - camera_ratio[0]
         self.target_y = player.y + camera_ratio[1]
         #x,y -> x,y
-        border_list = [(0, 16, 0, 0), (16, 16, 56, 16), (0, 0, 80, 1), (80, 32, 80, 0),]
+        border_list = [(0, 16, 0, 0), (16, 16, 56, 16), (0, 0, 80, 1), (80, 32, 80, 0), (16, 32, 80, 32)]
         for t in border_list:
             blocked = []
             if self.target_y > t[3]:
@@ -920,7 +920,6 @@ assets = {
 
     #background
     "default_back_wall": ("assets/environment/background/default_back_wall.png",),
-    "lightmap_test": ("assets/environment/background/lightmap_test.png",),
     "door_frame": ("assets/environment/background/door_frame.png",),
 
     #parallax_backdrop
