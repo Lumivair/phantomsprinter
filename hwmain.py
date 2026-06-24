@@ -36,10 +36,11 @@ def layer_sort(object):
 def reset_game():
     global player, objects, loaded_chunks, camera, debug, attack_timer, new_chunks, debug_sky, debug_towers, debug_mountains, unticked_chunks
     player = Player(7, 5, textures["player_atlas"], 0.6, 1.84375, "hanspeter")
-    debug_sky = Background(0, 0, textures["debug_sky"], {"layer":"4","collision":"false","parallax":"0"}, None)
-    debug_towers = Background(0, 0.25, textures["debug_towers"], {"layer":"4","collision":"false","parallax":"0.05"}, None)
-    debug_mountains = Background(0, 0.25, textures["debug_mountains"], {"layer":"4","collision":"false","parallax":"0.06"}, None)
-    objects = [player, debug_sky, debug_towers, debug_mountains]
+    # debug_sky = Background(0, 0, textures["debug_sky"], {"layer":"4","collision":"false","parallax":"0"}, None)
+    # debug_towers = Background(0, 0.25, textures["debug_towers"], {"layer":"4","collision":"false","parallax":"0.05"}, None)
+    # debug_mountains = Background(0, 0.25, textures["debug_mountains"], {"layer":"4","collision":"false","parallax":"0.06"}, None)
+    objects = [player] #, debug_sky, debug_towers, debug_mountains]
+    Backdrop.create_backdrop()
     loaded_chunks = []
     unticked_chunks = []
     camera = Camera()
@@ -213,9 +214,14 @@ class Environment:
     def uv_coords(self):
         return get_uv_coords(self.animation)
 
-class Background(Environment):
+class Backdrop(Environment):
     def __init__(self, x, y, texture, attribute_dict, chunk):
         super().__init__(x, y, texture, attribute_dict, chunk)
+    def create_backdrop():
+        objects.append(Backdrop(-4, 0.0, textures["bd_4"], {"layer":"4","collision":"false","parallax":"0"}, None))
+        objects.append(Backdrop(-4, 0.5, textures["bd_3"], {"layer":"4","collision":"false","parallax":"0.03"}, None))
+        objects.append(Backdrop(-4, 0.5, textures["bd_2"], {"layer":"4","collision":"false","parallax":"0.05"}, None))
+        objects.append(Backdrop(-4, 0.5, textures["bd_1"], {"layer":"4","collision":"false","parallax":"0.07"}, None))
     
 class Entity:
     def __init__(self, x, y, texture, width, height):
@@ -426,6 +432,87 @@ class PistolEnemy(Enemy):
             objects.append(Projectile(self.x + self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], self.angle, 0.1, textures["bullet"]))
         else:
             objects.append(Projectile(self.x + 0.5 - self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], -self.angle + math.pi, 0.1, textures["bullet"])) # radians done with chatgpt
+
+class RifleEnemy(Enemy):
+    def __init__(self, x, y, texture, width, height, attributes):
+        super().__init__(x, y, texture, width, height, attributes) 
+        self.angle = 0
+        self.distance = 0
+        self.activation_range = 8
+        self.shooting_range = 5
+        self.shooting_timer = Timer(0.75)
+        self.animation = {
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x,
+            "static" : [True, 444, 35, 1, self.texture.width, 0, None, 68, 68, self.facing, 0, 8/32],
+            "walking" : [True, 0, 37, 12, self.texture.width, 0, Timer(1 / 12), 59, 68, self.facing, -0.3, -2/32],
+            "aim" : [True, 444, 35, 8, self.texture.width, 0, None, 68, 68, self.facing, 0, 8/32],
+        }
+        self.angle_list = [
+                        (-0.3, -2, 0, 0.6, 0.7),
+                        (-0.2, -0.3, 1, 0.7, 0.62),
+                        (-0.1, -0.2, 2, 0.7, 0.57),
+                        (0.1, -0.1, 3, 0.65, 0.44),
+                        (0.4, 0.1, 4, 0.7, 0.27),
+                        (0.6, 0.4, 5, 0.62, 0.23),
+                        (0.8, 0.6, 6, 0.6, 0.1),
+                        (5, 0.8, 7, 0.53, -0.05)
+                        ]
+
+    def uv_coords(self):
+        self.animation[self.currentanimation][9] = self.facing
+        if self.facing == "left": # <---- this is shit
+            self.animation["static"][10] = -0.4
+            self.animation["aim"][10] = -0.4
+        else:
+            self.animation["static"][10] = -0.06
+            self.animation["aim"][10] = -0.06
+        self.width = self.animation[self.currentanimation][2] / 32
+        self.height = ((self.animation[self.currentanimation][7] / 32) / self.hitbox_height) * self.hitbox_height
+        return get_uv_coords(self.animation[self.currentanimation])
+    
+    def ai(self):
+        if self.ticking == False:
+            return
+        self.distance = abs(math.sqrt((object.x - player.x) ** 2 + (object.y - player.y) ** 2))
+        try:
+            self.angle = math.atan((player.y - self.y) / abs(player.x - self.x))
+        except ZeroDivisionError:
+            pass
+        if self.distance <= self.activation_range:
+            if self.x > player.x:
+                self.facing = "left"
+                if self.x > player.x + self.shooting_range:
+                    self.x -= 0.03
+                    if self.collide()[0]:
+                        self.x = object.collide()[2]
+                        self.currentanimation = "static"
+                    else:
+                        self.currentanimation = "walking"
+            elif self.x < player.x:
+                self.facing = "right"
+                if self.x < player.x - self.shooting_range:
+                    self.x += 0.03
+                    if self.collide()[0]:
+                        self.x = object.collide()[1] - self.hitbox_width
+                        self.currentanimation = "static"
+                    else:
+                        self.currentanimation = "walking"
+            if not self.currentanimation == "walking":
+                self.currentanimation = "aim"
+                for list in self.angle_list:
+                    if self.angle < list[0] and self.angle > list[1]:
+                        self.animation["aim"][5] = list[2]
+                if self.shooting_timer.time() and self.angle > -0.7 and self.angle < 1.1:
+                    self.shoot()
+            else:
+                self.shooting_timer.timer = 0.4
+    def shoot(self):
+        pygame.mixer.Sound.play(bullet_sfx)
+        if self.facing == "right":
+            objects.append(Projectile(self.x + self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], self.angle, 0.08, textures["bullet"]))
+        else:
+            objects.append(Projectile(self.x + 0.5 - self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], -self.angle + math.pi, 0.08, textures["bullet"])) # radians done with chatgpt
+
 
 class Projectile:
     def __init__(self, x, y, angle, speed, texture):
@@ -674,7 +761,7 @@ debug_timer = Timer(5)
 ctrl = False
 
 pygame.mixer.music.load("assets/sound/music/background_music.ogg")
-pygame.mixer.music.play(loops=1, fade_ms=2000)
+pygame.mixer.music.play(loops=-1, fade_ms=2000)
 pygame.mixer.music.set_volume(0.1)
 
 # =========================
@@ -698,6 +785,7 @@ assets = {
     #entities
     "player_atlas": ("assets/entities/player/player_atlas_test.png",),
     "pistol_enemy_atlas": ("assets/entities/enemies/pistol_enemy_atlas.png",),
+    "rifle_enemy_atlas": ("assets/entities/enemies/rifle_enemy_atlas.png",),
     "bullet": ("assets/entities/projectiles/bullet.png",),
 
     #terrain
@@ -733,6 +821,8 @@ assets = {
     "block_8": ("assets/environment/decoration/block_8.png",),
     "warning_sign": ("assets/environment/decoration/warning_sign.png",),
     "warning_signpost": ("assets/environment/decoration/warning_signpost.png",),
+    "trashbags":("assets/environment/decoration/trashbags.png",),
+    "trashbags_large":("assets/environment/decoration/trashbags_large.png",),
     #animated
     "rubbish_bin": ("assets/environment/decoration/rubbish_bin_atlas.png", 5, 5),
     "aircon_1x1": ("assets/environment/decoration/aircon_1x1_atlas.png", 3, 30),
@@ -746,6 +836,12 @@ assets = {
     #background
     "default_back_wall": ("assets/environment/background/default_back_wall.png",),
     "lightmap_test": ("assets/environment/background/lightmap_test.png",),
+
+    #parallax_backdrop
+    "bd_1": ("assets/environment/parallax_backdrop/1.png",),
+    "bd_2": ("assets/environment/parallax_backdrop/2.png",),
+    "bd_3": ("assets/environment/parallax_backdrop/3.png",),
+    "bd_4": ("assets/environment/parallax_backdrop/4.png",),
 }
 
 textures = {}
@@ -755,7 +851,8 @@ bullet_sfx = pygame.mixer.Sound("assets/sound/sfx/pulse-shot.wav")
 
 enemies = {
     "debug_enemy" : [Enemy, (textures["debug_enemy_atlas"], 0.6, 1.75,)],
-    "pistol_enemy" : [PistolEnemy, (textures["pistol_enemy_atlas"], 0.6, 1.875,)]
+    "pistol_enemy" : [PistolEnemy, (textures["pistol_enemy_atlas"], 0.6, 1.875,)],
+    "rifle_enemy" : [RifleEnemy, (textures["rifle_enemy_atlas"], 0.6, 1.875,)]
 }
 
 reset_game()
@@ -819,9 +916,9 @@ while True:
                 debug.enabled = not debug.enabled
             if event.key == pygame.K_F4:
                 player.noclip = not player.noclip
+                player.health = 1000
             if event.key == pygame.K_r and ctrl:
                 print("Reloading...")
-                objects = [player, debug_sky, debug_towers, debug_mountains]
                 loaded_chunks = []
 
             if event.key == pygame.K_SPACE and player.currentanimation == "static":
@@ -921,7 +1018,7 @@ while True:
                         object.attack()
     
     for object in objects:
-        if object.__class__ == PistolEnemy:
+        if object.__class__ == PistolEnemy or object.__class__ == RifleEnemy:
             object.ai()
         if object.__class__ == Projectile:
             object.move()
@@ -933,7 +1030,7 @@ while True:
             if object.noclip == False and object.ticking:
                 object.y += object.y_velocity
                 if object.damage_collide():
-                    player.damage(1)
+                    object.damage(1)
                 if object.collide()[0] == True:
                     if object.y_velocity < 0: #fall collision
                         object.jumping = False

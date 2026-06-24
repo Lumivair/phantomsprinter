@@ -12,8 +12,10 @@ stone_9x9 11 10
 stone_3x2 6 3
 
 block_8 0 3 {layer=3;collision=false}
+trashbags_large 4 1.9 {layer=3;collision=false}
 
 lightmap_test 0 16 {layer=3;collision=false}
 
-pistol_enemy 3 3 {layer=2;collision=false}
+rifle_enemy 3 3 {layer=2;collision=false}
+#pistol_enemy 3 3 {layer=2;collision=false}
 #debug_enemy 5 3 {layer=2;collision=false}
