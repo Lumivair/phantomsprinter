@@ -656,7 +656,7 @@ class Camera:
         self.target_x = player.x - camera_ratio[0]
         self.target_y = player.y + camera_ratio[1]
         #x,y -> x,y
-        border_list = [(0, 16, 0, 0), (16, 16, 56, 16), (0, 0, 80, 1), (80, 32, 80, 0)]
+        border_list = [(0, 16, 0, 0), (16, 16, 56, 16), (0, 0, 80, 1), (80, 32, 80, 0),]
         for t in border_list:
             blocked = []
             if self.target_y > t[3]:
