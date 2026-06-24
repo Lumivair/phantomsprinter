@@ -1,2 +1,10 @@
 default_back_wall 0 16 {layer=3;collision=false}
 brick_16x1 0 1
+brick_16x1 0 16
+stone_4x2_2 11 11
+metal_cargo_2x2 5 3
+electricity 0 1.5 {layer=2;collision=false;damage=true}
+electricity 7 1.5 {layer=2;collision=false;damage=true}
+stone_4x2_1 12 3
+metal_cargo_2x2 14 5
+rusted_metal_1x1_2 15 6

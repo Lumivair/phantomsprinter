@@ -7,5 +7,6 @@ rusted_metal_1x1_1 11 2
 stone_5x1 6 7
 metal_cargo_2x2 9 9
 stone_4x1 2 12
-stone_4x1 9 14
-brick_4x1 12 16
+stone_4x1 2 9 14
+brick_4x1_2 12 16
+brick_2x1 14 15

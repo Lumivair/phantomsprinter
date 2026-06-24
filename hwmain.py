@@ -426,6 +426,10 @@ class PistolEnemy(Enemy):
             else:
                 object.animation["draw"][5] = 0
                 self.shooting_timer.timer = 0.8
+        else:
+            self.currentanimation = "static"
+            object.animation["draw"][5] = 0
+            self.shooting_timer.timer = 0.8
     def shoot(self):
         pygame.mixer.Sound.play(bullet_sfx)
         if self.facing == "right":
@@ -513,6 +517,77 @@ class RifleEnemy(Enemy):
         else:
             objects.append(Projectile(self.x + 0.5 - self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], -self.angle + math.pi, 0.08, textures["bullet"])) # radians done with chatgpt
 
+
+class SwordEnemy(Enemy):
+    def __init__(self, x, y, texture, width, height, attributes):
+        super().__init__(x, y, texture, width, height, attributes) 
+        self.distance = 0
+        self.activation_range = 8
+        self.attack_range = 2
+        self.attack_timer = Timer(0.2)
+        self.swing_delay_timer = Timer(1)
+        self.animation = {
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x, offset y
+            "static" : [True, 1387, 42, 1, self.texture.width, 0, None, 59, 59, self.facing, 0, 0],
+            "walking" : [True, 780, 48, 12, self.texture.width, 0, Timer(1 / 12), 59, 59, self.facing, -0.3, -2/32],
+            "running" : [True, 0, 65, 12, self.texture.width, 0, Timer(1 / 16), 53, 59, self.facing, -0.75, -7/32],
+            "static_attack" : [True, 1356, 120, 8, self.texture.width, 0, Timer(1 / 24), 59, 59, self.facing, -1.5, 0],
+        }
+
+    def uv_coords(self):
+        self.animation[self.currentanimation][9] = self.facing
+        if self.facing == "left": # <---- this is shit
+            self.animation["static"][10] = -0.2
+            self.animation["walking"][10] = -0.3
+        else:
+            self.animation["static"][10] = -0.5
+            self.animation["walking"][10] = -0.6
+        self.width = self.animation[self.currentanimation][2] / 32
+        self.height = ((self.animation[self.currentanimation][7] / 32) / self.hitbox_height) * self.hitbox_height
+        return get_uv_coords(self.animation[self.currentanimation])
+    
+    def ai(self):
+        if self.ticking == False:
+            return
+        self.distance = abs(math.sqrt((object.x - player.x) ** 2 + (object.y - player.y) ** 2))
+        if self.distance <= self.activation_range:
+            if self.x > player.x and self.attack_timer.timer == 0 and not self.currentanimation == "static_attack":
+                self.facing = "left"
+                if self.x > player.x + self.attack_range:
+                    self.x -= 0.03
+                    if self.collide()[0]:
+                        self.x = object.collide()[2]
+                        self.currentanimation = "static"
+                    else:
+                        self.currentanimation = "walking"
+            elif self.x < player.x and self.attack_timer.timer == 0 and not self.currentanimation == "static_attack":
+                self.facing = "right"
+                if self.x < player.x - self.attack_range:
+                    self.x += 0.03
+                    if self.collide()[0]:
+                        self.x = object.collide()[1] - self.hitbox_width
+                        self.currentanimation = "static"
+                    else:
+                        self.currentanimation = "walking"
+            if self.distance <= self.attack_range or not self.attack_timer.timer == 0 or not self.animation["static_attack"][5] == 0:
+                if self.swing_delay_timer.timer == 0:
+                    if self.attack_timer.time():
+                            self.currentanimation = "static_attack"
+                            self.attack()
+                            
+                    elif self.animation["static_attack"][5] >= 7:
+                        self.currentanimation = "static"
+                        self.animation["static_attack"][5] = 0
+                        self.attack_timer.timer = 0
+                        self.swing_delay_timer.timer = 0.1
+            if not self.swing_delay_timer.timer == 0:
+                self.swing_delay_timer.time()
+                pass
+
+
+            # else:
+            #     self.currentanimation == "static"
+            #     self.swing_delay_timer.timer = 0
 
 class Projectile:
     def __init__(self, x, y, angle, speed, texture):
@@ -783,15 +858,18 @@ assets = {
     "debug_box": ("assets/debug/box.png",),
 
     #entities
-    "player_atlas": ("assets/entities/player/player_atlas_test.png",),
+    "player_atlas": ("assets/entities/player/player_atlas.png",),
     "pistol_enemy_atlas": ("assets/entities/enemies/pistol_enemy_atlas.png",),
     "rifle_enemy_atlas": ("assets/entities/enemies/rifle_enemy_atlas.png",),
+    "sword_enemy_atlas": ("assets/entities/enemies/sword_enemy_atlas.png",),
     "bullet": ("assets/entities/projectiles/bullet.png",),
 
     #terrain
     "brick_16x1": ("assets/environment/terrain/brick_16x1.png",),
     "brick_2x1": ("assets/environment/terrain/brick_2x1.png",),
     "brick_4x1": ("assets/environment/terrain/brick_4x1.png",),
+    "brick_4x1_2": ("assets/environment/terrain/brick_4x1_2.png",),
+    "stone_1x1": ("assets/environment/terrain/stone_1x1.png",),
     "stone_2x1_1": ("assets/environment/terrain/stone_2x1_1.png",),
     "stone_2x1_2": ("assets/environment/terrain/stone_2x1_2.png",),
     "stone_3x1": ("assets/environment/terrain/stone_3x1.png",),
@@ -801,11 +879,14 @@ assets = {
     "stone_7x2": ("assets/environment/terrain/stone_7x2.png",),
     "stone_6x2": ("assets/environment/terrain/stone_6x2.png",),
     "stone_2x2": ("assets/environment/terrain/stone_2x2.png",),
+    "stone_8x2_1": ("assets/environment/terrain/stone_8x2_1.png",),
+    "stone_14x1": ("assets/environment/terrain/stone_14x1.png",),
     "stone_5x1": ("assets/environment/terrain/stone_5x1.png",),
     "wall_1x11": ("assets/environment/terrain/wall_1x11.png",),
     "wall_1x13": ("assets/environment/terrain/wall_1x13.png",),
     "wall_2x11": ("assets/environment/terrain/wall_2x11.png",),
     "wall_2x15": ("assets/environment/terrain/wall_2x15.png",),
+    "wall_1x15": ("assets/environment/terrain/wall_1x15.png",),
     "metal_cargo_2x2": ("assets/environment/terrain/metal_cargo_2x2.png",),
     "rusted_metal_1x1_1": ("assets/environment/terrain/rusted_metal_1x1_1.png",),
     "rusted_metal_1x1_2": ("assets/environment/terrain/rusted_metal_1x1_2.png",),
@@ -815,6 +896,7 @@ assets = {
     "stone_3x2": ("assets/environment/terrain/stone_3x2.png", 1, 0, "assets/environment/terrain/stone_3x2.col"),
     "stone_stair_2x2": ("assets/environment/terrain/stone_stair_2x2.png", 1, 0, "assets/environment/terrain/stone_stair_2x2.col"),
     "wall_11x3": ("assets/environment/terrain/wall_11x3.png", 1, 0, "assets/environment/terrain/wall_11x3.col"),
+    "stone_8x2_2": ("assets/environment/terrain/stone_8x2_2.png", 1, 0, "assets/environment/terrain/stone_8x2_2.col"),
 
     #decoration
     "lamp": ("assets/environment/decoration/lamp.png",),
@@ -823,6 +905,9 @@ assets = {
     "warning_signpost": ("assets/environment/decoration/warning_signpost.png",),
     "trashbags":("assets/environment/decoration/trashbags.png",),
     "trashbags_large":("assets/environment/decoration/trashbags_large.png",),
+    "ceiling_lamp": ("assets/environment/decoration/ceiling_lamp.png",),
+    "ceiling_lamp_large": ("assets/environment/decoration/ceiling_lamp_large.png",),
+    
     #animated
     "rubbish_bin": ("assets/environment/decoration/rubbish_bin_atlas.png", 5, 5),
     "aircon_1x1": ("assets/environment/decoration/aircon_1x1_atlas.png", 3, 30),
@@ -836,6 +921,7 @@ assets = {
     #background
     "default_back_wall": ("assets/environment/background/default_back_wall.png",),
     "lightmap_test": ("assets/environment/background/lightmap_test.png",),
+    "door_frame": ("assets/environment/background/door_frame.png",),
 
     #parallax_backdrop
     "bd_1": ("assets/environment/parallax_backdrop/1.png",),
@@ -852,7 +938,8 @@ bullet_sfx = pygame.mixer.Sound("assets/sound/sfx/pulse-shot.wav")
 enemies = {
     "debug_enemy" : [Enemy, (textures["debug_enemy_atlas"], 0.6, 1.75,)],
     "pistol_enemy" : [PistolEnemy, (textures["pistol_enemy_atlas"], 0.6, 1.875,)],
-    "rifle_enemy" : [RifleEnemy, (textures["rifle_enemy_atlas"], 0.6, 1.875,)]
+    "rifle_enemy" : [RifleEnemy, (textures["rifle_enemy_atlas"], 0.6, 1.875,)],
+    "sword_enemy" : [SwordEnemy, (textures["sword_enemy_atlas"], 0.6, 59/32,)]
 }
 
 reset_game()
@@ -1018,7 +1105,7 @@ while True:
                         object.attack()
     
     for object in objects:
-        if object.__class__ == PistolEnemy or object.__class__ == RifleEnemy:
+        if isinstance(object, Enemy):
             object.ai()
         if object.__class__ == Projectile:
             object.move()

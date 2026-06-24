@@ -1,2 +1,10 @@
 default_back_wall 0 16 {layer=3;collision=false}
 stone_4x2_2 5 3
+stone_3x1 12 4
+rusted_metal_1x1_1 14 5
+rusted_metal_1x1_1 13 5
+stone_4x1 8 8
+stone_2x2 3 10
+brick_16x1 0 16
+wall_1x15 15 15
+stone_4x1 8 12

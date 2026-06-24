@@ -16,6 +16,7 @@ trashbags_large 4 1.9 {layer=3;collision=false}
 
 lightmap_test 0 16 {layer=3;collision=false}
 
-rifle_enemy 3 3 {layer=2;collision=false}
+sword_enemy 3 3 {layer=2;collision=false}
+#rifle_enemy 3 3 {layer=2;collision=false}
 #pistol_enemy 3 3 {layer=2;collision=false}
 #debug_enemy 5 3 {layer=2;collision=false}
