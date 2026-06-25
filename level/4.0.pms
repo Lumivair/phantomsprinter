@@ -10,3 +10,5 @@ stone_4x1 2 12
 stone_4x1 9 14
 brick_4x1_2 12 16
 brick_2x1 14 15
+
+sword_enemy 13 4 {layer=2;collision=false}

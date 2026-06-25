@@ -12,16 +12,16 @@ from PIL import Image
 # =========================
 def debug_attack_hitbox_render():
     if object.facing == "right":
-        program["transform_matrix"].value = np.array([(object.attack_hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
-                                                0.0, (object.attack_hitbox_height * screen_ratio[1]), 0.0, 0.0,
+        program["transform_matrix"].value = np.array([object.attack_hitbox_width * screen_ratio[0] * 0.5, 0.0, 0.0, wcoords_translate(object.x, object.y, 1)[0] + (object.attack_hitbox_width * screen_ratio[0] / 2),
+                                                0.0, object.attack_hitbox_height * screen_ratio[1] * 0.5, 0.0, wcoords_translate(object.x, object.y, 1)[1] - (object.attack_hitbox_height * screen_ratio[1] / 2),
                                                 0.0, 0.0, 1.0, 0.0,
-                                                wcoords_translate(object.x, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
+                                                0.0, 0.0, 0.0, 1.0,
                                                 ], dtype='f4')   
     else:
-        program["transform_matrix"].value = np.array([(- object.attack_hitbox_width * screen_ratio[0]), 0.0, 0.0, 0.0,
-                                                0.0, (object.attack_hitbox_height * screen_ratio[1]), 0.0, 0.0,
+        program["transform_matrix"].value = np.array([- object.attack_hitbox_width * screen_ratio[0] * 0.5, 0.0, 0.0, wcoords_translate(object.x + object.hitbox_width, object.y, 1)[0] - (object.attack_hitbox_width * screen_ratio[0] / 2),
+                                                0.0, object.attack_hitbox_height * screen_ratio[1] * 0.5, 0.0, wcoords_translate(object.x, object.y, 1)[1] - (object.attack_hitbox_height * screen_ratio[1] / 2),
                                                 0.0, 0.0, 1.0, 0.0,
-                                                wcoords_translate(object.x + object.hitbox_width, object.y, 1)[0], wcoords_translate(object.x, object.y, 1)[1], 0.0, 1.0,
+                                                0.0, 0.0, 0.0, 1.0,
                                                 ], dtype='f4')   
     vao.render(mode=moderngl.TRIANGLE_STRIP)
     
@@ -36,10 +36,7 @@ def layer_sort(object):
 def reset_game():
     global player, objects, loaded_chunks, camera, debug, attack_timer, new_chunks, debug_sky, debug_towers, debug_mountains, unticked_chunks
     player = Player(7, 5, textures["player_atlas"], 0.6, 1.84375, "hanspeter")
-    # debug_sky = Background(0, 0, textures["debug_sky"], {"layer":"4","collision":"false","parallax":"0"}, None)
-    # debug_towers = Background(0, 0.25, textures["debug_towers"], {"layer":"4","collision":"false","parallax":"0.05"}, None)
-    # debug_mountains = Background(0, 0.25, textures["debug_mountains"], {"layer":"4","collision":"false","parallax":"0.06"}, None)
-    objects = [player] #, debug_sky, debug_towers, debug_mountains]
+    objects = [player]
     Backdrop.create_backdrop()
     loaded_chunks = []
     unticked_chunks = []
@@ -47,16 +44,17 @@ def reset_game():
     debug = Debug()
     attack_timer = Timer(0.3)
     new_chunks = [] 
+    postprocessing.brightness = 0
     postprocessing.target_brightness = 1.0
 
 def set_screen_ratio(view):
-        global screen_ratio, camera_ratio, screen_width, screen_height
-        screen_size = pygame.display.get_window_size()
-        screen_width = screen_size[0]
-        screen_height = screen_size[1]
-        ratio_multiplier = math.sqrt(view/(screen_width * screen_height))
-        screen_ratio = [(1 / (screen_width * ratio_multiplier) * 2), (1 / (screen_height * ratio_multiplier) * 2)]
-        camera_ratio = [(screen_width * ratio_multiplier) / 2, (screen_height * ratio_multiplier) / 2]
+    global screen_ratio, camera_ratio, screen_width, screen_height
+    screen_size = pygame.display.get_window_size()
+    screen_width = screen_size[0]
+    screen_height = screen_size[1]
+    ratio_multiplier = math.sqrt(view/(screen_width * screen_height))
+    screen_ratio = [(1 / (screen_width * ratio_multiplier) * 2), (1 / (screen_height * ratio_multiplier) * 2)]
+    camera_ratio = [(screen_width * ratio_multiplier) / 2, (screen_height * ratio_multiplier) / 2]
 
 def wcoords_translate(x, y, parallax_factor):
     return[((x - camera.wcoord_x * float(parallax_factor)) * screen_ratio[0]) - 1, ((y - camera.wcoord_y * float(parallax_factor)) * screen_ratio[1]) + 1]
@@ -76,8 +74,7 @@ def update_loaded_chunks():
     new_chunks = []
     for width in range(-1, 2):
         for height in range(-1, 2):
-            new_chunks.append([player.chunk()[0] + width, player.chunk()[1] + height]) # TODO if bored, make it smarter and not just all chunks next to player
-
+            new_chunks.append([player.chunk()[0] + width, player.chunk()[1] + height])
     # chunk unloader:
     for object in objects:
         if isinstance(object, Entity):
@@ -93,13 +90,11 @@ def update_loaded_chunks():
                 except ValueError:
                     pass
                 objects.remove(object)
-    # print("new:", new_chunks)
-    # print("loaded:", loaded_chunks)
     for chunk in new_chunks:
         if chunk not in loaded_chunks:
             loaded_chunks.append(chunk)
             try: 
-                with open(f"level/1/{chunk[0]}.{chunk[1]}.pms") as level:
+                with open(f"level/{chunk[0]}.{chunk[1]}.pms") as level:
                     for i, line in enumerate(level):
                         line = line.strip()
                         line = line.split()
@@ -213,6 +208,11 @@ class Environment:
         return wcoords_translate(self.x, self.y, self.attributes["parallax"])
     def uv_coords(self):
         return get_uv_coords(self.animation)
+    def door_update(self):
+        if self.y <= 8 and abs(self.x - player.x) <= 3:
+            self.y += 0.1
+        elif self.y > 4 and abs(self.x - player.x) >= 3:
+            self.y -= 0.1
 
 class Backdrop(Environment):
     def __init__(self, x, y, texture, attribute_dict, chunk):
@@ -344,10 +344,20 @@ class Enemy(Entity):
             "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 12), 53, 69, self.facing, -0.75, -6/32],
             "static_attack" : [True, 871, 119, 8, self.texture.width, 1, Timer(1 / 24), 59, 69, self.facing, -1.5, 0],
         }
+        self.death_atlas = textures["generic_death_atlas"]
+        self.dead = False
     def damage(self, amount):
         self.health -= amount
         if self.health <= 0:
-            objects.remove(self)
+            self.dead = True
+            self.animation.update({"death" : [True, 0, 72, 8, self.death_atlas.width, 0, Timer(1/16), 64, 64, self.facing, -0.79, 0.1]})
+            self.animation.update({"death_static" : [True, 504, 72, 1, self.death_atlas.width, 0, None, 64, 64, self.facing, -0.79, 0.1]})
+            self.currentanimation = "death"
+    def bind(self):
+        if self.dead == False:
+            self.texture.texture_raw.use(location=0)
+        elif self.dead == True:
+            self.death_atlas.texture_raw.use(location=0)
 
 class PistolEnemy(Enemy):
     def __init__(self, x, y, texture, width, height, attributes):
@@ -357,6 +367,12 @@ class PistolEnemy(Enemy):
         self.activation_range = 8
         self.shooting_range = 5
         self.shooting_timer = Timer(1)
+        try:
+            self.attributes["border"] = self.attributes["border"].split(",")
+            self.attributes["border"][0] = float(self.attributes["border"][0])
+            self.attributes["border"][1] = float(self.attributes["border"][1])
+        except:
+            pass
         self.animation = {
             #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x,
             "static" : [True, 444, 34, 1, self.texture.width, 0, None, 60, 60, self.facing, 0, 0],
@@ -390,6 +406,11 @@ class PistolEnemy(Enemy):
     def ai(self):
         if self.ticking == False:
             return
+        if self.dead == True:
+            if self.currentanimation == "death":
+                if self.animation["death"][5] >= 7:
+                    self.currentanimation = "death_static"
+            return
         self.distance = abs(math.sqrt((object.x - player.x) ** 2 + (object.y - player.y) ** 2))
         try:
             self.angle = math.atan((player.y - self.y) / abs(player.x - self.x))
@@ -399,21 +420,23 @@ class PistolEnemy(Enemy):
             if self.x > player.x:
                 self.facing = "left"
                 if self.x > player.x + self.shooting_range:
-                    self.x -= 0.03
-                    if self.collide()[0]:
-                        self.x = object.collide()[2]
-                        self.currentanimation = "static"
-                    else:
-                        self.currentanimation = "walking"
+                    if self.attributes.get("border") == None or self.x > self.attributes["border"][0]:
+                        self.x -= 0.03
+                        if self.collide()[0]:
+                            self.x = object.collide()[2]
+                            self.currentanimation = "static"
+                        else:
+                            self.currentanimation = "walking"
             elif self.x < player.x:
                 self.facing = "right"
                 if self.x < player.x - self.shooting_range:
-                    self.x += 0.03
-                    if self.collide()[0]:
-                        self.x = object.collide()[1] - self.hitbox_width
-                        self.currentanimation = "static"
-                    else:
-                        self.currentanimation = "walking"
+                     if self.attributes.get("border") == None or self.x < self.attributes["border"][1]:
+                        self.x += 0.03
+                        if self.collide()[0]:
+                            self.x = object.collide()[1] - self.hitbox_width
+                            self.currentanimation = "static"
+                        else:
+                            self.currentanimation = "walking"
             if not self.currentanimation == "walking":
                 self.currentanimation = "draw"
                 if self.animation["draw"][5] >= 4:
@@ -445,6 +468,12 @@ class RifleEnemy(Enemy):
         self.activation_range = 8
         self.shooting_range = 5
         self.shooting_timer = Timer(0.75)
+        try:
+            self.attributes["border"] = self.attributes["border"].split(",")
+            self.attributes["border"][0] = float(self.attributes["border"][0])
+            self.attributes["border"][1] = float(self.attributes["border"][1])
+        except:
+            pass
         self.animation = {
             #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x,
             "static" : [True, 444, 35, 1, self.texture.width, 0, None, 68, 68, self.facing, 0, 8/32],
@@ -477,6 +506,11 @@ class RifleEnemy(Enemy):
     def ai(self):
         if self.ticking == False:
             return
+        if self.dead == True:
+            if self.currentanimation == "death":
+                if self.animation["death"][5] >= 7:
+                    self.currentanimation = "death_static"
+            return
         self.distance = abs(math.sqrt((object.x - player.x) ** 2 + (object.y - player.y) ** 2))
         try:
             self.angle = math.atan((player.y - self.y) / abs(player.x - self.x))
@@ -486,21 +520,23 @@ class RifleEnemy(Enemy):
             if self.x > player.x:
                 self.facing = "left"
                 if self.x > player.x + self.shooting_range:
-                    self.x -= 0.03
-                    if self.collide()[0]:
-                        self.x = object.collide()[2]
-                        self.currentanimation = "static"
-                    else:
-                        self.currentanimation = "walking"
+                    if self.attributes.get("border") == None or self.x > self.attributes["border"][0]:
+                        self.x -= 0.03
+                        if self.collide()[0]:
+                            self.x = object.collide()[2]
+                            self.currentanimation = "static"
+                        else:
+                            self.currentanimation = "walking"
             elif self.x < player.x:
                 self.facing = "right"
                 if self.x < player.x - self.shooting_range:
-                    self.x += 0.03
-                    if self.collide()[0]:
-                        self.x = object.collide()[1] - self.hitbox_width
-                        self.currentanimation = "static"
-                    else:
-                        self.currentanimation = "walking"
+                    if self.attributes.get("border") == None or self.x < self.attributes["border"][1]:
+                        self.x += 0.03
+                        if self.collide()[0]:
+                            self.x = object.collide()[1] - self.hitbox_width
+                            self.currentanimation = "static"
+                        else:
+                            self.currentanimation = "walking"
             if not self.currentanimation == "walking":
                 self.currentanimation = "aim"
                 for list in self.angle_list:
@@ -517,6 +553,58 @@ class RifleEnemy(Enemy):
         else:
             objects.append(Projectile(self.x + 0.5 - self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], -self.angle + math.pi, 0.08, textures["bullet"])) # radians done with chatgpt
 
+class TurretEnemy(Enemy):
+    def __init__(self, x, y, texture, width, height, attributes):
+        super().__init__(x, y, texture, width, height, attributes) 
+        self.angle = 0
+        self.distance = 0
+        self.activation_range = 10
+        self.shooting_range = 5
+        self.shooting_timer = Timer(2)
+        self.animation = {
+            #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x,
+            "aim" : [True, 0, 45, 8, self.texture.width, 0, None, 55, 55, self.facing, -0.25, 0],
+        }
+        self.currentanimation = "aim"
+        self.angle_list = [
+                        (-2.6, -3, 0, 0.5, 0.83, -2.8),
+                        (-2.3, -2.6, 1, 0.5, 0.74, -2.55),
+                        (-1.8, -2.3, 2, 0.5, 0.69, -2.3),
+                        (-1.2, -1.8, 3, 0.3, 0.7, -1.5),
+                        (-1.2, -1.2, 4, 0.3, 0.7, -1.5),
+                        (-0.6, -1.2, 5, 0.38, 0.93, -0.75),
+                        (-0.3, -0.6, 6, 0.38, 0.93, -0.5),
+                        (0.0, -0.3, 7, 0.38, 0.93, -0.25)
+                        ]
+
+    def uv_coords(self):
+        self.animation[self.currentanimation][9] = self.facing
+        self.width = self.animation[self.currentanimation][2] / 32
+        self.height = ((self.animation[self.currentanimation][7] / 32) / self.hitbox_height) * self.hitbox_height
+        return get_uv_coords(self.animation[self.currentanimation])
+    
+    def ai(self):
+        if self.ticking == False:
+            return
+        self.distance = abs(math.sqrt((object.x - player.x) ** 2 + (object.y - player.y) ** 2))
+        try:
+            self.angle = math.atan2(player.y - self.y,
+                                    player.x - self.x) # ChatGPT
+        except ZeroDivisionError:
+            pass
+        
+        if self.distance <= self.activation_range:
+            for list in self.angle_list:
+                if self.angle < list[0] and self.angle > list[1]:
+                    self.animation["aim"][5] = list[2]
+            if self.shooting_timer.time():
+                self.shoot()
+                # else:
+                #     self.shooting_timer.timer = 0.4
+    def shoot(self):
+        pygame.mixer.Sound.play(bullet_sfx)
+        objects.append(HomingProjectile(self.x + self.angle_list[self.animation["aim"][5]][3], self.y - self.angle_list[self.animation["aim"][5]][4], self.angle_list[self.animation["aim"][5]][5], 0.06, textures["bullet"]))
+
 
 class SwordEnemy(Enemy):
     def __init__(self, x, y, texture, width, height, attributes):
@@ -526,6 +614,12 @@ class SwordEnemy(Enemy):
         self.attack_range = 2
         self.attack_timer = Timer(0.2)
         self.swing_delay_timer = Timer(1)
+        try:
+            self.attributes["border"] = self.attributes["border"].split(",")
+            self.attributes["border"][0] = float(self.attributes["border"][0])
+            self.attributes["border"][1] = float(self.attributes["border"][1])
+        except:
+            pass
         self.animation = {
             #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x, offset y
             "static" : [True, 1387, 42, 1, self.texture.width, 0, None, 59, 59, self.facing, 0, 0],
@@ -533,6 +627,7 @@ class SwordEnemy(Enemy):
             "running" : [True, 0, 65, 12, self.texture.width, 0, Timer(1 / 16), 53, 59, self.facing, -0.75, -7/32],
             "static_attack" : [True, 1356, 120, 8, self.texture.width, 0, Timer(1 / 24), 59, 59, self.facing, -1.5, 0],
         }
+        
 
     def uv_coords(self):
         self.animation[self.currentanimation][9] = self.facing
@@ -549,26 +644,33 @@ class SwordEnemy(Enemy):
     def ai(self):
         if self.ticking == False:
             return
+        if self.dead == True:
+            if self.currentanimation == "death":
+                if self.animation["death"][5] >= 7:
+                    self.currentanimation = "death_static"
+            return
         self.distance = abs(math.sqrt((object.x - player.x) ** 2 + (object.y - player.y) ** 2))
         if self.distance <= self.activation_range:
             if self.x > player.x and self.attack_timer.timer == 0 and not self.currentanimation == "static_attack":
                 self.facing = "left"
                 if self.x > player.x + self.attack_range:
-                    self.x -= 0.03
-                    if self.collide()[0]:
-                        self.x = object.collide()[2]
-                        self.currentanimation = "static"
-                    else:
-                        self.currentanimation = "walking"
+                    if self.attributes.get("border") == None or self.x > self.attributes["border"][0]:
+                        self.x -= 0.03
+                        if self.collide()[0]:
+                            self.x = object.collide()[2]
+                            self.currentanimation = "static"
+                        else:
+                            self.currentanimation = "walking"
             elif self.x < player.x and self.attack_timer.timer == 0 and not self.currentanimation == "static_attack":
                 self.facing = "right"
                 if self.x < player.x - self.attack_range:
-                    self.x += 0.03
-                    if self.collide()[0]:
-                        self.x = object.collide()[1] - self.hitbox_width
-                        self.currentanimation = "static"
-                    else:
-                        self.currentanimation = "walking"
+                    if self.attributes.get("border") == None or self.x < self.attributes["border"][1]:
+                        self.x += 0.03
+                        if self.collide()[0]:
+                            self.x = object.collide()[1] - self.hitbox_width
+                            self.currentanimation = "static"
+                        else:
+                            self.currentanimation = "walking"
             if self.distance <= self.attack_range or not self.attack_timer.timer == 0 or not self.animation["static_attack"][5] == 0:
                 if self.swing_delay_timer.timer == 0:
                     if self.attack_timer.time():
@@ -583,11 +685,6 @@ class SwordEnemy(Enemy):
             if not self.swing_delay_timer.timer == 0:
                 self.swing_delay_timer.time()
                 pass
-
-
-            # else:
-            #     self.currentanimation == "static"
-            #     self.swing_delay_timer.timer = 0
 
 class Projectile:
     def __init__(self, x, y, angle, speed, texture):
@@ -627,8 +724,32 @@ class Projectile:
                 if self.x + self.hitbox_width > object.x and self.x < object.x + object.hitbox_width and self.y < object.y + self.hitbox_height and self.y > object.y - object.hitbox_height:
                     return [True, True]
         return [False, False]
+    def move(self):
+        self.x += math.cos(self.angle) * self.speed
+        self.y += math.sin(self.angle) * self.speed
+        if self.collide()[0]:
+            if self.collide()[1]:
+                player.damage(1)
+            objects.remove(self)
+        if self.despawn_timer.time():
+            objects.remove(self)
+
+class HomingProjectile(Projectile):
+    def __init__(self, x, y, angle, speed, texture):
+        super().__init__(x, y, angle, speed, texture) 
+        self.despawn_timer = Timer(3)
     
     def move(self):
+        try:
+            self.target_angle = math.atan2(player.y - self.y,
+                                    player.x - self.x) #ChatGPT
+        except ZeroDivisionError:
+            pass
+        self.angle += math.atan2(
+            math.sin(self.target_angle - self.angle),
+            math.cos(self.target_angle - self.angle)
+            ) * 0.012 #ChatGPT
+        self.rotation = self.angle
         self.x += math.cos(self.angle) * self.speed
         self.y += math.sin(self.angle) * self.speed
         if self.collide()[0]:
@@ -640,7 +761,7 @@ class Projectile:
 
 class Camera:
     def __init__(self):
-        self.wcoord_x = player.x - camera_ratio[0]
+        self.wcoord_x = 0
         self.wcoord_y = player.y + camera_ratio[1]
         self.target_x = player.x - camera_ratio[0]
         self.target_y = player.y + camera_ratio[1]
@@ -678,7 +799,6 @@ class Camera:
             elif "up" in blocked and "down" in blocked and self.target_x < t[2] and self.target_x > t[2] - camera_ratio[0]:
                 self.target_x = t[2]
 
-            # print(blocked)
             if debug.enabled:
                 self.target_x = player.x - camera_ratio[0]
                 self.target_y = player.y + camera_ratio[1]
@@ -862,6 +982,8 @@ assets = {
     "pistol_enemy_atlas": ("assets/entities/enemies/pistol_enemy_atlas.png",),
     "rifle_enemy_atlas": ("assets/entities/enemies/rifle_enemy_atlas.png",),
     "sword_enemy_atlas": ("assets/entities/enemies/sword_enemy_atlas.png",),
+    "turret_enemy_atlas": ("assets/entities/enemies/turret_enemy_atlas.png",),
+    "generic_death_atlas": ("assets/entities/enemies/generic_death_atlas.png",),
     "bullet": ("assets/entities/projectiles/bullet.png",),
 
     #terrain
@@ -917,6 +1039,7 @@ assets = {
     
     #misc
     "electricity": ("assets/environment/misc/electricity.png", 2, 4),
+    "door": ("assets/environment/misc/door.png",),
 
     #background
     "default_back_wall": ("assets/environment/background/default_back_wall.png",),
@@ -938,7 +1061,8 @@ enemies = {
     "debug_enemy" : [Enemy, (textures["debug_enemy_atlas"], 0.6, 1.75,)],
     "pistol_enemy" : [PistolEnemy, (textures["pistol_enemy_atlas"], 0.6, 1.875,)],
     "rifle_enemy" : [RifleEnemy, (textures["rifle_enemy_atlas"], 0.6, 1.875,)],
-    "sword_enemy" : [SwordEnemy, (textures["sword_enemy_atlas"], 0.6, 59/32,)]
+    "sword_enemy" : [SwordEnemy, (textures["sword_enemy_atlas"], 0.6, 59/32,)],
+    "turret_enemy" : [TurretEnemy, (textures["turret_enemy_atlas"], 1, 1.2,)]
 }
 
 reset_game()
@@ -994,6 +1118,7 @@ while True:
         if event.type == pygame.QUIT:
             exit()
         if event.type == pygame.MOUSEWHEEL and debug.enabled:
+            print("dad")
             debug_view += event.y * -50
             set_screen_ratio(debug_view)
 
@@ -1044,7 +1169,6 @@ while True:
         elif player.currentanimation == "static":
             player.facing = "left"
             player.currentanimation = "walking"
-            # player.animation["static_attack"][5] = 1
         elif player.currentanimation == "walking_attack" and player.animation["walking_attack"][5] > 3 and player.facing == "right":
             player.facing = "left"
             player.currentanimation = "walking"
@@ -1066,54 +1190,23 @@ while True:
         exit()
 
     if debug.enabled == False:
-        debug_view = 144
-        set_screen_ratio(debug_view)
-
-    
+        set_screen_ratio(144)
 
     # UPDATE CHUNKS
     update_loaded_chunks()
 
-    # ENEMY AI (debug)
-    for object in objects:
-        if object.__class__ == Enemy:
-            if abs(object.x - player.x) < 6:
-                if object.x > player.x and attack_timer.timer == 0:
-                    object.facing = "left"
-                    if object.x > player.x + 1.5:
-                        object.x -= 0.05
-                        if object.collide()[0] and not object.noclip:
-                            object.x = object.collide()[2]
-                        elif not object.currentanimation == "static_attack":
-                            object.currentanimation = "walking"
-                            object.animation["static_attack"][5] = 1
-                            attack_timer.timer = 0
-                elif object.x < player.x and attack_timer.timer == 0:
-                    object.facing = "right"
-                    if object.x < player.x - 1.5:
-                        object.x += 0.05
-                        if object.collide()[0] and not object.noclip:
-                            object.x = object.collide()[1] - object.hitbox_width
-                        elif not object.currentanimation == "static_attack":
-                            object.currentanimation = "walking"
-                            object.animation["static_attack"][5] = 1
-                            attack_timer.timer = 0
-                if abs(object.x - player.x) <= 1.5 and object.currentanimation == "static" or not attack_timer.timer == 0:
-                    if attack_timer.time():
-                        object.currentanimation = "static_attack"
-                        object.attack()
-    
     for object in objects:
         if isinstance(object, Enemy):
             object.ai()
-        if object.__class__ == Projectile:
+        if isinstance(object, Projectile):
             object.move()
+        if object.__class__ == Environment and object.attributes.get("door") == "true":
+            object.door_update()
             
-
     # COLLISIONS
     for object in objects:
         if isinstance(object, Entity):
-            if object.noclip == False and object.ticking:
+            if object.noclip == False and object.ticking and not object.attributes.get("gravity") == "false":
                 object.y += object.y_velocity
                 if object.damage_collide():
                     object.damage(1)
@@ -1140,7 +1233,10 @@ while True:
     ctx.clear(0.5, 0, 0.5)
     objects.sort(key=layer_sort, reverse=True)
     for object in objects:
-            object.texture.bind()
+            try:
+                object.bind()
+            except AttributeError:
+                object.texture.bind()
             uv_coords = object.uv_coords()
             program["uv_transform_matrix"].value = np.array([uv_coords[1], 0.0, 0.0,
                                                             0.0, uv_coords[3], 0.0, 
@@ -1173,12 +1269,12 @@ while True:
                 textures["debug_attack"].bind()
 
                 try:
-                    if not object.animation["walking_attack"][5] == 1:
+                    if not object.animation["walking_attack"][5] == 1 and not object.animation["walking_attack"][5] == 0:
                         debug_attack_hitbox_render()
                 except:
                     pass
                 try:
-                    if not object.animation.get["static_attack"][5] == 1:
+                    if not object.animation["static_attack"][5] == 1 and not object.animation["static_attack"][5] == 0:
                         debug_attack_hitbox_render()
                 except:
                     pass

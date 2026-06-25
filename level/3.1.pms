@@ -8,3 +8,5 @@ electricity 7 1.5 {layer=2;collision=false;damage=true}
 stone_4x2_1 12 3 
 metal_cargo_2x2 13 5
 rusted_metal_1x1_2 14 6
+
+pistol_enemy 12 13 {layer=2;collision=false;border=59,62}
