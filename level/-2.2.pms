@@ -1,0 +1,5 @@
+default_back_wall 0 16 {layer=3;collision=false}
+stone_5x1 1 1
+wall_1x15 0 15
+stone_3x1 8 8
+elevator 1 16

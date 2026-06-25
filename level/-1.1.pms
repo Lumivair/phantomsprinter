@@ -1,0 +1,17 @@
+default_back_wall -2 16 {layer=3;collision=false}
+bridge 14 2 {layer=1;collision=false}
+bridge_railing 14 2.6 {layer=1;collision=false}
+bridge_railing_collision 14 1.8 {layer=3;collision=true}
+brick_14x1 0 1
+stone_3x1 11 2
+metal_cargo_2x2 3 3
+stone_2x1_1 8 4
+stone_3x1 0 6
+stone_2x1_2 4 8
+stone_2x1_1 10 7
+stone_1x1 10 3
+stone_3x1 0 15
+stone_5x1 7 16
+electricity 5 1.5 {layer=2;collision=false;damage=true}
+electricity 10 1.5 {layer=2;collision=false;damage=true}
+electricity 0 1.5 {layer=2;collision=false;damage=true}

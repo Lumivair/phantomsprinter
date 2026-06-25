@@ -2,3 +2,5 @@ brick_2x1 14 1
 brick_2x1 14 16
 wall_2x11 14 16
 rusted_metal_1x1_2 15  2
+rusted_metal_1x1_2 14  2
+wall_2x11 -2 16

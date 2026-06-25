@@ -988,6 +988,7 @@ assets = {
 
     #terrain
     "brick_16x1": ("assets/environment/terrain/brick_16x1.png",),
+    "brick_14x1": ("assets/environment/terrain/brick_14x1.png",),
     "brick_2x1": ("assets/environment/terrain/brick_2x1.png",),
     "brick_4x1": ("assets/environment/terrain/brick_4x1.png",),
     "brick_4x1_2": ("assets/environment/terrain/brick_4x1_2.png",),
@@ -1012,6 +1013,12 @@ assets = {
     "metal_cargo_2x2": ("assets/environment/terrain/metal_cargo_2x2.png",),
     "rusted_metal_1x1_1": ("assets/environment/terrain/rusted_metal_1x1_1.png",),
     "rusted_metal_1x1_2": ("assets/environment/terrain/rusted_metal_1x1_2.png",),
+    "bridge": ("assets/environment/terrain/bridge.png",),
+    "bridge_railing": ("assets/environment/terrain/bridge_railing.png",),
+    "bridge_railing_collision": ("assets/environment/terrain/bridge_railing_collision.png",),
+    "elevator": ("assets/environment/terrain/elevator.png",),
+    "glass": ("assets/environment/terrain/glass.png",),
+    
     
     #custom hitbox
     "stone_9x9": ("assets/environment/terrain/stone_9x9.png", 1, 0, "assets/environment/terrain/stone_9x9.col"),
