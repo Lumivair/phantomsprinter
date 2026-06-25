@@ -6,6 +6,6 @@ wall_2x11 14 15
 trashbags 1 5.5 {layer=3;collision=false}
 trashbags_large 2 1.9 {layer=3;collision=false}
 door_frame 15.1 4 {layer=3;collision=false}
-door 14.75 4 {layer=2;collision=true;door=true}
+door 14.75 4 {layer=2;collision=true;door=8,4}
 
 #turret_enemy 7 9 {layer=2;collision=false;gravity=false}

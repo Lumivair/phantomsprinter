@@ -4,3 +4,12 @@ wall_2x11 14 16
 rusted_metal_1x1_2 15  2
 rusted_metal_1x1_2 14  2
 wall_2x11 -2 16
+
+door_frame 15.1 5 {layer=3;collision=false}
+door 14.75 5 {layer=2;collision=true;door=25,21}
+
+
+
+bridge -2 2.3 {layer=1;collision=false}
+bridge_railing -2 3 {layer=1;collision=false}
+bridge_railing_collision -2 2 {layer=3;collision=true}

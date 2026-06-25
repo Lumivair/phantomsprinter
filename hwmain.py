@@ -162,7 +162,7 @@ def get_uv_coords(parameter_list):
 # =========================
 class AssetManager:
     def __init__(self, texture_properties):
-        self.texture_path= texture_properties[0]
+        self.texture_path = texture_properties[0]
         with Image.open(self.texture_path) as image:
             self.texture = image.convert("RGBA")
             self.width = self.texture.size[0]
@@ -198,6 +198,10 @@ class Environment:
         self.attributes = attribute_dict
         self.chunk = chunk
         try:
+            self.attributes["door"] = self.attributes["door"].split(",")
+        except:
+            pass
+        try:
             self.animation_timer = Timer(1 / self.texture.fps)
             self.current_animation_frame = 0
             #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x
@@ -209,10 +213,18 @@ class Environment:
     def uv_coords(self):
         return get_uv_coords(self.animation)
     def door_update(self):
-        if self.y <= 8 and abs(self.x - player.x) <= 3:
+        if self.y <= float(self.attributes["door"][0]) and abs(self.x - player.x) <= 3:
             self.y += 0.1
-        elif self.y > 4 and abs(self.x - player.x) >= 3:
+        elif self.y > float(self.attributes["door"][1]) and abs(self.x - player.x) >= 3:
             self.y -= 0.1
+    def elevator(self):
+        if self.y < 51:
+            self.y += 0.05
+        for object in objects:
+            if object.__class__ == Environment and not object.attributes.get("elevator_move") == None:
+                object.y = self.y + 0.3
+            if object.__class__ == Environment and not object.attributes.get("elevator_move_2") == None:
+                object.y = self.y + 3.5
 
 class Backdrop(Environment):
     def __init__(self, x, y, texture, attribute_dict, chunk):
@@ -230,6 +242,7 @@ class Entity:
         self.y_velocity = 0
         self.jumping = False
         self.noclip = False
+        self.in_elevator = False
         self.health = 1
         self.ticking = True
         self.width = width
@@ -273,9 +286,9 @@ class Entity:
                             line = line.split()
                             #line: x1, y1 -> x2, y2
                             if self.x + self.hitbox_width > object.x + float(line[0]) and self.x < object.x + float(line[2]) and self.y < object.y + self.hitbox_height - float(line[1]) and self.y > object.y - float(line[3]):
-                                return [True, object.x + float(line[0]), object.x + float(line[2]), object.y - float(line[1]), object.y - float(line[3])]
+                                return [True, object.x + float(line[0]), object.x + float(line[2]), object.y - float(line[1]), object.y - float(line[3]), object]
                 elif self.x + self.hitbox_width > object.x and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
-                    return [True, object.x, object.x + object.width, object.y, object.y - object.height]
+                    return [True, object.x, object.x + object.width, object.y, object.y - object.height, object]
         return [False, None]
     def damage_collide(self):
         for object in objects:
@@ -283,16 +296,19 @@ class Entity:
                 if self.x + self.hitbox_width > object.x and self.x < object.x + object.width and self.y < object.y + self.hitbox_height and self.y > object.y - object.height:
                     return True
     def attack(self):
+        pygame.mixer.Sound.play(sword_slash_sfx)
         if self.facing == "right":
             for object in objects:
-                if isinstance(object, Entity) and not object.__class__ == self.__class__:
+                if isinstance(object, Entity) and not object.__class__ == self.__class__ and not object.health <= 0:
                     if self.x + self.attack_hitbox_width > object.x and self.x < object.x + object.hitbox_width and self.y - self.attack_hitbox_height < object.y and self.y > object.y - object.hitbox_height:
                         object.damage(1)
+                        pygame.mixer.Sound.play(sword_hit_sfx)
         if self.facing == "left":
             for object in objects:
-                if isinstance(object, Entity) and not object.__class__ == self.__class__:
+                if isinstance(object, Entity) and not object.__class__ == self.__class__ and not object.health <= 0:
                     if self.x - self.attack_hitbox_width < object.x and self.x > object.x + object.hitbox_width and self.y - self.attack_hitbox_height < object.y and self.y > object.y - object.hitbox_height:
                         object.damage(1)
+                        pygame.mixer.Sound.play(sword_hit_sfx)
 
 class Player(Entity):
     def __init__(self, x, y, texture, width, height, name):
@@ -1018,6 +1034,9 @@ assets = {
     "bridge_railing_collision": ("assets/environment/terrain/bridge_railing_collision.png",),
     "elevator": ("assets/environment/terrain/elevator.png",),
     "glass": ("assets/environment/terrain/glass.png",),
+    "cables": ("assets/environment/terrain/cables.png",),
+    "elevator_background": ("assets/environment/terrain/elevator_background.png",),
+    "elevator": ("assets/environment/terrain/elevator.png", 1, 0, "assets/environment/terrain/elevator.col"),
     
     
     #custom hitbox
@@ -1051,6 +1070,7 @@ assets = {
     #background
     "default_back_wall": ("assets/environment/background/default_back_wall.png",),
     "door_frame": ("assets/environment/background/door_frame.png",),
+    "door_frame_2": ("assets/environment/background/door_frame_2.png",),
 
     #parallax_backdrop
     "bd_1": ("assets/environment/parallax_backdrop/1.png",),
@@ -1062,7 +1082,9 @@ assets = {
 textures = {}
 texture_load()
 
-bullet_sfx = pygame.mixer.Sound("assets/sound/sfx/pulse-shot.wav")
+bullet_sfx = pygame.mixer.Sound("assets/sound/sfx/pulse_shot.wav")
+sword_slash_sfx = pygame.mixer.Sound("assets/sound/sfx/sword_slash.wav")
+sword_hit_sfx = pygame.mixer.Sound("assets/sound/sfx/sword_hit.wav")
 
 enemies = {
     "debug_enemy" : [Enemy, (textures["debug_enemy_atlas"], 0.6, 1.75,)],
@@ -1158,7 +1180,7 @@ while True:
         ctrl = False
     if key_pressed[pygame.K_RIGHT] and key_pressed[pygame.K_LEFT]:
         pass
-    elif key_pressed[pygame.K_RIGHT]:
+    elif key_pressed[pygame.K_RIGHT] and not player.in_elevator:
         player.x += 0.1
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[1] - player.hitbox_width
@@ -1169,7 +1191,7 @@ while True:
             player.facing = "right"
             player.currentanimation = "walking"
             player.animation["walking_attack"][5] = 1
-    elif key_pressed[pygame.K_LEFT]:
+    elif key_pressed[pygame.K_LEFT] and not player.in_elevator:
         player.x -= 0.1
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[2]
@@ -1207,8 +1229,10 @@ while True:
             object.ai()
         if isinstance(object, Projectile):
             object.move()
-        if object.__class__ == Environment and object.attributes.get("door") == "true":
+        if object.__class__ == Environment and not object.attributes.get("door") == None:
             object.door_update()
+        # if object.__class__ == Environment and not object.attributes.get("elevator") == None:
+        #     object.y += 0.01
             
     # COLLISIONS
     for object in objects:
@@ -1218,6 +1242,15 @@ while True:
                 if object.damage_collide():
                     object.damage(1)
                 if object.collide()[0] == True:
+                    if not object.collide()[5].attributes.get("elevator") == None:
+                        object.in_elevator = True
+                        col_object = object.collide()[5]
+                        print("ele")
+                        player.y = col_object.y - 3.5625 + player.hitbox_height
+                        object.jumping = True
+                        object.y_velocity = 0
+                        col_object.elevator()
+                        break
                     if object.y_velocity < 0: #fall collision
                         object.jumping = False
                         object.y = object.collide()[3] + object.hitbox_height

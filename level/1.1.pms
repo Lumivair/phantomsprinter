@@ -6,7 +6,8 @@ stone_14x1 3 12
 brick_16x1 0 1
 brick_16x1 0 16
 rusted_metal_1x1_1 10 9 
-
+rusted_metal_1x1_2 0 2
+rusted_metal_1x1_2 1 2
 
 sword_enemy 5 14 {layer=2;collision=false;border=27,30}
 sword_enemy 12 10 {layer=2;collision=false;border=27,30}
