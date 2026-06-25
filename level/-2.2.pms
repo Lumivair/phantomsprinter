@@ -3,3 +3,4 @@ stone_5x1 0 1
 wall_1x11 0 15
 stone_3x1 8 8
 door 0 4 {layer=2;collision=true;door=41,36}
+brick_16x1 0 16

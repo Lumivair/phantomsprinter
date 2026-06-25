@@ -10,6 +10,43 @@ from PIL import Image
 # =========================
 # Functions
 # =========================
+
+def boss_fight():
+    global boss_fight_timer, boss_fight_wave
+    if player.y >= 50 and player.x >= -16:
+        print("BOSS")
+        if boss_fight_timer.time():
+            if boss_fight_wave == 4:
+                boss_fight_timer = Timer(6767676767)
+                objects.append(Environment(-9, 56, textures["metal_cargo_2x2"], {"layer" : "1", "collision" : "true", "parallax" : "1"}, [-1, 3]))
+                objects.append(enemies["sword_enemy"][0](-15, 51, *enemies["sword_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["sword_enemy"][0](-4, 51, *enemies["sword_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["rifle_enemy"][0](-14, 56, *enemies["rifle_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["rifle_enemy"][0](-2, 56, *enemies["rifle_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["pistol_enemy"][0](-8.3, 58, *enemies["pistol_enemy"][1], {"layer" : "2", "collision" : "false",}))
+            if boss_fight_wave == 3:
+                objects.append(enemies["sword_enemy"][0](-15, 51, *enemies["sword_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["sword_enemy"][0](-4, 51, *enemies["sword_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["rifle_enemy"][0](-14, 56, *enemies["rifle_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["rifle_enemy"][0](-2, 56, *enemies["rifle_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["pistol_enemy"][0](-8.3, 56, *enemies["pistol_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                boss_fight_timer = Timer(20)
+                boss_fight_timer.timer = 0
+                boss_fight_wave = 4
+            if boss_fight_wave == 2:
+                objects.append(enemies["pistol_enemy"][0](-15, 51, *enemies["pistol_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["pistol_enemy"][0](-4, 51, *enemies["pistol_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                boss_fight_timer = Timer(12)
+                boss_fight_timer.timer = 0
+                boss_fight_wave = 3
+            if boss_fight_wave == 1:
+                objects.append(enemies["sword_enemy"][0](-15, 51, *enemies["sword_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                objects.append(enemies["sword_enemy"][0](-4, 51, *enemies["sword_enemy"][1], {"layer" : "2", "collision" : "false",}))
+                boss_fight_timer = Timer(10)
+                boss_fight_timer.timer = 0
+                boss_fight_wave = 2
+            
+
 def debug_attack_hitbox_render():
     if object.facing == "right":
         program["transform_matrix"].value = np.array([object.attack_hitbox_width * screen_ratio[0] * 0.5, 0.0, 0.0, wcoords_translate(object.x, object.y, 1)[0] + (object.attack_hitbox_width * screen_ratio[0] / 2),
@@ -202,6 +239,10 @@ class Environment:
         except:
             pass
         try:
+            self.attributes["manual_door"] = self.attributes["manual_door"].split(",")
+        except:
+            pass
+        try:
             self.animation_timer = Timer(1 / self.texture.fps)
             self.current_animation_frame = 0
             #is not fullscreen texture?, start x coord of texture, width/step of x, frames, total_width, current animation frame, animation timer, height, total height, facing, offset x
@@ -217,9 +258,25 @@ class Environment:
             self.y += 0.1
         elif self.y > float(self.attributes["door"][1]) and abs(self.x - player.x) >= 3:
             self.y -= 0.1
+        
+    def manual_door_update(self):
+        print(self.x - player.x)
+        if self.y <= float(self.attributes["manual_door"][0]) and self.x - player.x <= 3 and self.x - player.x >= 0:
+            self.y += 0.1
+        if self.y > float(self.attributes["manual_door"][1]) and self.x - player.x >= 3:
+            self.y -= 0.1
+        if self.y > float(self.attributes["manual_door"][1]) and self.x - player.x <= 0:
+            self.y -= 0.1
+        # if self.y <= float(self.attributes["door"][0]) and abs(self.x - player.x) <= 3:
+        #     self.y += 0.1
+        # elif self.y > float(self.attributes["door"][1]) and abs(self.x - player.x) >= 3:
+        #     self.y -= 0.1
+
     def elevator(self):
-        if self.y < 51:
+        if self.y <= 52.6:
             self.y += 0.05
+        else:
+            player.immobile = False
         for object in objects:
             if object.__class__ == Environment and not object.attributes.get("elevator_move") == None:
                 object.y = self.y + 0.3
@@ -242,7 +299,7 @@ class Entity:
         self.y_velocity = 0
         self.jumping = False
         self.noclip = False
-        self.in_elevator = False
+        self.immobile = False
         self.health = 1
         self.ticking = True
         self.width = width
@@ -320,12 +377,20 @@ class Player(Entity):
             "walking" : [True, 67, 67, 12, self.texture.width, 0, Timer(1 / 16), 53, 69, self.facing, -0.75, -6/32],
             "static_attack" : [True, 871, 119, 8, self.texture.width, 1, Timer(1 / 24), 59, 69, self.facing, -1.5, 0],
             "walking_attack" : [True, 1823, 106, 6, self.texture.width, 1, Timer(1 / 12), 69, 69, self.facing, -1.4, 10/32],
+            "death" : [True, 2459, 63, 6, self.texture.width, 0, Timer(1 / 12), 60, 69, self.facing, -0.3, -0.05],
+            "death_static" : [True, 2774, 63, 1, self.texture.width, 0, None, 60, 69, self.facing, -0.3, -0.05],
+            
         }
         self.brightness_timer = Timer(1)
     def damage(self, amount):
         self.health -= amount
     def death_update(self):
         if player.health <= 0:
+            player.immobile = True
+            if not player.currentanimation == "death_static":
+                player.currentanimation = "death"
+            if player.animation["death"][5] >= 5:
+                player.currentanimation = "death_static"
             postprocessing.target_brightness = 0
             if self.brightness_timer.time():
                 reset_game()
@@ -773,7 +838,10 @@ class HomingProjectile(Projectile):
                 player.damage(1)
             objects.remove(self)
         if self.despawn_timer.time():
-            objects.remove(self)
+            try:
+                objects.remove(self)
+            except:
+                pass
 
 class Camera:
     def __init__(self):
@@ -793,7 +861,7 @@ class Camera:
         self.target_x = player.x - camera_ratio[0]
         self.target_y = player.y + camera_ratio[1]
         #x,y -> x,y
-        border_list = [(0, 16, 0, 0), (16, 16, 56, 16), (0, 0, 80, 1), (80, 32, 80, 0), (16, 32, 80, 32)]
+        border_list = [(0, 16, 0, 0), (16, 16, 56, 16), (0, 0, 80, 1), (80, 32, 80, 0), (16, 32, 80, 32), (-32, 16, 1, 16), (-32, 32, -32, 16), (0, 48, 0, 32), (-16, 48, 0, 48)]
         for t in border_list:
             blocked = []
             if self.target_y > t[3]:
@@ -954,7 +1022,7 @@ class PostProcessing:
 pygame.init()
 
 pygame.display.set_mode(
-    (1280, 720),
+    (1920, 1080),
     pygame.OPENGL | pygame.DOUBLEBUF
 )
 pygame.display.set_caption('PhantomSprinter')
@@ -969,6 +1037,8 @@ postprocessing = PostProcessing()
 
 clock = pygame.time.Clock()
 debug_timer = Timer(5)
+boss_fight_timer = Timer(3)
+boss_fight_wave = 1
 ctrl = False
 
 pygame.mixer.music.load("assets/sound/music/background_music.ogg")
@@ -1178,9 +1248,9 @@ while True:
         ctrl = True
     else:
         ctrl = False
-    if key_pressed[pygame.K_RIGHT] and key_pressed[pygame.K_LEFT]:
+    if key_pressed[pygame.K_d] and key_pressed[pygame.K_a]:
         pass
-    elif key_pressed[pygame.K_RIGHT] and not player.in_elevator:
+    elif key_pressed[pygame.K_d] and not player.immobile:
         player.x += 0.1
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[1] - player.hitbox_width
@@ -1191,7 +1261,7 @@ while True:
             player.facing = "right"
             player.currentanimation = "walking"
             player.animation["walking_attack"][5] = 1
-    elif key_pressed[pygame.K_LEFT] and not player.in_elevator:
+    elif key_pressed[pygame.K_a] and not player.immobile:
         player.x -= 0.1
         if player.collide()[0] and not player.noclip:
             player.x = player.collide()[2]
@@ -1205,13 +1275,13 @@ while True:
     elif player.currentanimation == "walking_attack" and player.animation["walking_attack"][5] > 3:
             player.currentanimation = "static"
             player.animation["walking_attack"][5] = 1
-    if key_pressed[pygame.K_UP] and player.jumping == False and player.noclip == False:
+    if key_pressed[pygame.K_w] and player.jumping == False and player.noclip == False and player.immobile == False:
         player.jumping = True
         player.y_velocity = 0.25
     if player.noclip == True:
-        if key_pressed[pygame.K_UP]:
+        if key_pressed[pygame.K_w]:
             player.y += 0.1
-        if key_pressed[pygame.K_DOWN]:
+        if key_pressed[pygame.K_s]:
             player.y -= 0.1
             
     # DEBUG
@@ -1220,6 +1290,8 @@ while True:
 
     if debug.enabled == False:
         set_screen_ratio(144)
+
+    boss_fight()
 
     # UPDATE CHUNKS
     update_loaded_chunks()
@@ -1231,6 +1303,8 @@ while True:
             object.move()
         if object.__class__ == Environment and not object.attributes.get("door") == None:
             object.door_update()
+        if object.__class__ == Environment and not object.attributes.get("manual_door") == None:
+            object.manual_door_update()
         # if object.__class__ == Environment and not object.attributes.get("elevator") == None:
         #     object.y += 0.01
             
@@ -1243,11 +1317,9 @@ while True:
                     object.damage(1)
                 if object.collide()[0] == True:
                     if not object.collide()[5].attributes.get("elevator") == None:
-                        object.in_elevator = True
+                        object.immobile = True
                         col_object = object.collide()[5]
-                        print("ele")
                         player.y = col_object.y - 3.5625 + player.hitbox_height
-                        object.jumping = True
                         object.y_velocity = 0
                         col_object.elevator()
                         break

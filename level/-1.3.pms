@@ -1,0 +1,15 @@
+default_back_wall 0 16 {layer=3;collision=false}
+brick_16x1 0 1
+wall_1x11 0 15
+wall_2x11 15 15
+brick_16x1 0 16 {layer=3;collision=false}
+stone_4x1 6 4
+stone_2x1_1 13 6
+stone_2x1_2 1 6
+metal_cargo_2x2 7 6
+stone_3x1 3 14
+turret_enemy 4 13 {layer=2;collision=false;gravity=false}
+stone_3x1 10 14
+turret_enemy 11 13 {layer=2;collision=false;gravity=false}
+
+door -1.25 4 {layer=2;collision=true;manual_door=56,52}

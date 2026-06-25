@@ -9,3 +9,4 @@ electricity 13 1.5 {layer=2;collision=false;damage=true}
 wall_11x3 12 15
 pistol_enemy 10 10 {layer=2;collision=false;border=41,44}
 sword_enemy 11 5 {layer=2;collision=false;border=41,44}
+rubbish_bin 0 6 {layer=3;collision=false}

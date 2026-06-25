@@ -10,6 +10,8 @@ stone_1x1 10 3
 stone_3x1 0 15
 stone_5x1 7 16
 
+#pistol_enemy 3 5 {layer=2;collision=false;border=-13,-12}
+
 door_frame_2 14 5 {layer=3;collision=false}
 door 14.85 5 {layer=2;collision=true;door=25,21}
 

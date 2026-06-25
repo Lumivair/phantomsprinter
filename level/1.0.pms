@@ -13,6 +13,11 @@ stone_3x2 6 3
 
 block_8 0 3 {layer=3;collision=false}
 trashbags_large 4 1.9 {layer=3;collision=false}
+burning_barrel_black 10 5 {layer=3;collision=false}
+aircon_2x1 1 7 {layer=3;collision=false}
+aircon_1x1 1 8 {layer=3;collision=false}
+trashbags_large 5 13.9 {layer=3;collision=false}
+trashbags_large 13 5.9 {layer=3;collision=false}
 
 #sword_enemy 3 3 {layer=2;collision=false}
 #rifle_enemy 3 3 {layer=2;collision=false}
