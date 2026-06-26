@@ -35,12 +35,11 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          pyinstaller --onefile --windowed \
-            --name PhantomSprinter \
-            --icon icon.png \
-            --add-data "assets:assets" \
-            --add-data "level:level" \
-            main.py
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            pyinstaller --onefile --windowed --name PhantomSprinter --icon icon.png --add-data assets:assets --add-data level:level main.py
+          else
+            pyinstaller --onefile --windowed --name PhantomSprinter --splash splash.png --icon icon.png --add-data assets:assets --add-data level:level --splash-center primary main.py
+          fi
 
       # ─────────────────────────────
       # WINDOWS (single .exe)
