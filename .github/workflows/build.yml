@@ -1,0 +1,82 @@
+name: Build All Platforms
+
+on:
+  push:
+    branches:
+      - pyinstaller
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: Windows
+            sep: ";"
+          - os: ubuntu-latest
+            artifact: Linux
+            sep: ":"
+          - os: macos-14
+            artifact: macOS
+            sep: ":"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build
+        shell: bash
+        run: |
+          pyinstaller --onefile --windowed --name PhantomSprinter --splash splash.png --icon icon.png --add-data assets:assets --add-data level:level --splash-center primary main.py
+
+      - name: Zip output
+        shell: bash
+        run: |
+          cd dist
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell Compress-Archive * ../${{ matrix.artifact }}.zip
+          else
+            zip -r ../${{ matrix.artifact }}.zip .
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beta
+          name: Beta Build
+          prerelease: true
+          files: |
+            artifacts/Windows/Windows.zip
+            artifacts/Linux/Linux.zip
+            artifacts/macOS/macOS.zip
