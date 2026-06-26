@@ -41,7 +41,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile hwmain.py
+          pyinstaller hwmain.py
 
       - uses: actions/upload-artifact@v4
         with:
