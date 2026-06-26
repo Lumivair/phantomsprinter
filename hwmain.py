@@ -131,7 +131,7 @@ def update_loaded_chunks():
         if chunk not in loaded_chunks:
             loaded_chunks.append(chunk)
             try: 
-                with open(f"level/{chunk[0]}.{chunk[1]}.pms") as level:
+                with open(f"{sys._MEIPASS}/level/{chunk[0]}.{chunk[1]}.pms") as level:
                     for i, line in enumerate(level):
                         line = line.strip()
                         line = line.split()
@@ -891,7 +891,7 @@ class Debug:
     def __init__(self):
         self.enabled = False
         self.fps = 62.5
-        self.font = pygame.font.Font("assets/font/Saira_Stencil/static/SairaStencil-SemiBold.ttf",50)
+        self.font = pygame.font.Font("{sys._MEIPASS}/assets/font/Saira_Stencil/static/SairaStencil-SemiBold.ttf",50)
         self.vertex = np.array([-1.0,  1.0, 0.0, 0, 1, #topleft
                                 -1.0, -1.0, 0.0, 0, 0, #bottomleft
                                  1.0,  1.0, 0.0, 1, 1, #topright
@@ -1027,7 +1027,7 @@ pygame.display.set_mode(
 )
 pygame.display.set_caption('PhantomSprinter')
 pygame.mouse.set_visible(False)
-pygame.display.set_icon(pygame.image.load("assets/debug/icon.png"))
+pygame.display.set_icon(pygame.image.load("{sys._MEIPASS}/assets/debug/icon.png"))
 
 ctx = moderngl.create_context()
 ctx.enable(moderngl.BLEND) # add transparancy
@@ -1041,7 +1041,7 @@ boss_fight_timer = Timer(3)
 boss_fight_wave = 1
 ctrl = False
 
-pygame.mixer.music.load("assets/sound/music/background_music.ogg")
+pygame.mixer.music.load("{sys._MEIPASS}/assets/sound/music/background_music.ogg")
 pygame.mixer.music.play(loops=-1, fade_ms=2000)
 pygame.mixer.music.set_volume(0.1)
 
@@ -1051,110 +1051,110 @@ pygame.mixer.music.set_volume(0.1)
 assets = {
     #name         : texture path, total frames, animation speed(in fps)
     #debug
-    "debug_player": ("assets/debug/player.png",),
-    "debug_ground": ("assets/debug/floor.png",),
-    "debug_background" : ("assets/debug/bg.png",),
-    "debug_sky": ("assets/debug/bg/sky_moon.png",),
-    "debug_towers": ("assets/debug/bg/towers.png",),
-    "debug_mountains": ("assets/debug/bg/mountains.png",),
-    "debug_attack": ("assets/debug/attack.png",),
-    "debug_enemy_atlas": ("assets/debug/debug_enemy_atlas.png",),
-    "debug_compass": ("assets/debug/compass.png",),
-    "debug_box2x": ("assets/debug/box2x.png",),
-    "debug_box": ("assets/debug/box.png",),
+    "debug_player": ("{sys._MEIPASS}/assets/debug/player.png",),
+    "debug_ground": ("{sys._MEIPASS}/assets/debug/floor.png",),
+    "debug_background" : ("{sys._MEIPASS}/assets/debug/bg.png",),
+    "debug_sky": ("{sys._MEIPASS}/assets/debug/bg/sky_moon.png",),
+    "debug_towers": ("{sys._MEIPASS}/assets/debug/bg/towers.png",),
+    "debug_mountains": ("{sys._MEIPASS}/assets/debug/bg/mountains.png",),
+    "debug_attack": ("{sys._MEIPASS}/assets/debug/attack.png",),
+    "debug_enemy_atlas": ("{sys._MEIPASS}/assets/debug/debug_enemy_atlas.png",),
+    "debug_compass": ("{sys._MEIPASS}/assets/debug/compass.png",),
+    "debug_box2x": ("{sys._MEIPASS}/assets/debug/box2x.png",),
+    "debug_box": ("{sys._MEIPASS}/assets/debug/box.png",),
 
     #entities
-    "player_atlas": ("assets/entities/player/player_atlas.png",),
-    "pistol_enemy_atlas": ("assets/entities/enemies/pistol_enemy_atlas.png",),
-    "rifle_enemy_atlas": ("assets/entities/enemies/rifle_enemy_atlas.png",),
-    "sword_enemy_atlas": ("assets/entities/enemies/sword_enemy_atlas.png",),
-    "turret_enemy_atlas": ("assets/entities/enemies/turret_enemy_atlas.png",),
-    "generic_death_atlas": ("assets/entities/enemies/generic_death_atlas.png",),
-    "bullet": ("assets/entities/projectiles/bullet.png",),
+    "player_atlas": ("{sys._MEIPASS}/assets/entities/player/player_atlas.png",),
+    "pistol_enemy_atlas": ("{sys._MEIPASS}/assets/entities/enemies/pistol_enemy_atlas.png",),
+    "rifle_enemy_atlas": ("{sys._MEIPASS}/assets/entities/enemies/rifle_enemy_atlas.png",),
+    "sword_enemy_atlas": ("{sys._MEIPASS}/assets/entities/enemies/sword_enemy_atlas.png",),
+    "turret_enemy_atlas": ("{sys._MEIPASS}/assets/entities/enemies/turret_enemy_atlas.png",),
+    "generic_death_atlas": ("{sys._MEIPASS}/assets/entities/enemies/generic_death_atlas.png",),
+    "bullet": ("{sys._MEIPASS}/assets/entities/projectiles/bullet.png",),
 
     #terrain
-    "brick_16x1": ("assets/environment/terrain/brick_16x1.png",),
-    "brick_14x1": ("assets/environment/terrain/brick_14x1.png",),
-    "brick_2x1": ("assets/environment/terrain/brick_2x1.png",),
-    "brick_4x1": ("assets/environment/terrain/brick_4x1.png",),
-    "brick_4x1_2": ("assets/environment/terrain/brick_4x1_2.png",),
-    "stone_1x1": ("assets/environment/terrain/stone_1x1.png",),
-    "stone_2x1_1": ("assets/environment/terrain/stone_2x1_1.png",),
-    "stone_2x1_2": ("assets/environment/terrain/stone_2x1_2.png",),
-    "stone_3x1": ("assets/environment/terrain/stone_3x1.png",),
-    "stone_4x1": ("assets/environment/terrain/stone_4x1.png",),
-    "stone_4x2_1": ("assets/environment/terrain/stone_4x2_1.png",),
-    "stone_4x2_2": ("assets/environment/terrain/stone_4x2_2.png",),
-    "stone_7x2": ("assets/environment/terrain/stone_7x2.png",),
-    "stone_6x2": ("assets/environment/terrain/stone_6x2.png",),
-    "stone_2x2": ("assets/environment/terrain/stone_2x2.png",),
-    "stone_8x2_1": ("assets/environment/terrain/stone_8x2_1.png",),
-    "stone_14x1": ("assets/environment/terrain/stone_14x1.png",),
-    "stone_5x1": ("assets/environment/terrain/stone_5x1.png",),
-    "wall_1x11": ("assets/environment/terrain/wall_1x11.png",),
-    "wall_1x13": ("assets/environment/terrain/wall_1x13.png",),
-    "wall_2x11": ("assets/environment/terrain/wall_2x11.png",),
-    "wall_2x15": ("assets/environment/terrain/wall_2x15.png",),
-    "wall_1x15": ("assets/environment/terrain/wall_1x15.png",),
-    "metal_cargo_2x2": ("assets/environment/terrain/metal_cargo_2x2.png",),
-    "rusted_metal_1x1_1": ("assets/environment/terrain/rusted_metal_1x1_1.png",),
-    "rusted_metal_1x1_2": ("assets/environment/terrain/rusted_metal_1x1_2.png",),
-    "bridge": ("assets/environment/terrain/bridge.png",),
-    "bridge_railing": ("assets/environment/terrain/bridge_railing.png",),
-    "bridge_railing_collision": ("assets/environment/terrain/bridge_railing_collision.png",),
-    "elevator": ("assets/environment/terrain/elevator.png",),
-    "glass": ("assets/environment/terrain/glass.png",),
-    "cables": ("assets/environment/terrain/cables.png",),
-    "elevator_background": ("assets/environment/terrain/elevator_background.png",),
-    "elevator": ("assets/environment/terrain/elevator.png", 1, 0, "assets/environment/terrain/elevator.col"),
-    
-    
+    "brick_16x1": ("{sys._MEIPASS}/assets/environment/terrain/brick_16x1.png",),
+    "brick_14x1": ("{sys._MEIPASS}/assets/environment/terrain/brick_14x1.png",),
+    "brick_2x1": ("{sys._MEIPASS}/assets/environment/terrain/brick_2x1.png",),
+    "brick_4x1": ("{sys._MEIPASS}/assets/environment/terrain/brick_4x1.png",),
+    "brick_4x1_2": ("{sys._MEIPASS}/assets/environment/terrain/brick_4x1_2.png",),
+    "stone_1x1": ("{sys._MEIPASS}/assets/environment/terrain/stone_1x1.png",),
+    "stone_2x1_1": ("{sys._MEIPASS}/assets/environment/terrain/stone_2x1_1.png",),
+    "stone_2x1_2": ("{sys._MEIPASS}/assets/environment/terrain/stone_2x1_2.png",),
+    "stone_3x1": ("{sys._MEIPASS}/assets/environment/terrain/stone_3x1.png",),
+    "stone_4x1": ("{sys._MEIPASS}/assets/environment/terrain/stone_4x1.png",),
+    "stone_4x2_1": ("{sys._MEIPASS}/assets/environment/terrain/stone_4x2_1.png",),
+    "stone_4x2_2": ("{sys._MEIPASS}/assets/environment/terrain/stone_4x2_2.png",),
+    "stone_7x2": ("{sys._MEIPASS}/assets/environment/terrain/stone_7x2.png",),
+    "stone_6x2": ("{sys._MEIPASS}/assets/environment/terrain/stone_6x2.png",),
+    "stone_2x2": ("{sys._MEIPASS}/assets/environment/terrain/stone_2x2.png",),
+    "stone_8x2_1": ("{sys._MEIPASS}/assets/environment/terrain/stone_8x2_1.png",),
+    "stone_14x1": ("{sys._MEIPASS}/assets/environment/terrain/stone_14x1.png",),
+    "stone_5x1": ("{sys._MEIPASS}/assets/environment/terrain/stone_5x1.png",),
+    "wall_1x11": ("{sys._MEIPASS}/assets/environment/terrain/wall_1x11.png",),
+    "wall_1x13": ("{sys._MEIPASS}/assets/environment/terrain/wall_1x13.png",),
+    "wall_2x11": ("{sys._MEIPASS}/assets/environment/terrain/wall_2x11.png",),
+    "wall_2x15": ("{sys._MEIPASS}/assets/environment/terrain/wall_2x15.png",),
+    "wall_1x15": ("{sys._MEIPASS}/assets/environment/terrain/wall_1x15.png",),
+    "metal_cargo_2x2": ("{sys._MEIPASS}/assets/environment/terrain/metal_cargo_2x2.png",),
+    "rusted_metal_1x1_1": ("{sys._MEIPASS}/assets/environment/terrain/rusted_metal_1x1_1.png",),
+    "rusted_metal_1x1_2": ("{sys._MEIPASS}/assets/environment/terrain/rusted_metal_1x1_2.png",),
+    "bridge": ("{sys._MEIPASS}/assets/environment/terrain/bridge.png",),
+    "bridge_railing": ("{sys._MEIPASS}/assets/environment/terrain/bridge_railing.png",),
+    "bridge_railing_collision": ("{sys._MEIPASS}/assets/environment/terrain/bridge_railing_collision.png",),
+    "elevator": ("{sys._MEIPASS}/assets/environment/terrain/elevator.png",),
+    "glass": ("{sys._MEIPASS}/assets/environment/terrain/glass.png",),
+    "cables": ("{sys._MEIPASS}/assets/environment/terrain/cables.png",),
+    "elevator_background": ("{sys._MEIPASS}/assets/environment/terrain/elevator_background.png",),
+    "elevator": ("{sys._MEIPASS}/assets/environment/terrain/elevator.png", 1, 0, "{sys._MEIPASS}/assets/environment/terrain/elevator.col"),
+
+
     #custom hitbox
-    "stone_9x9": ("assets/environment/terrain/stone_9x9.png", 1, 0, "assets/environment/terrain/stone_9x9.col"),
-    "stone_3x2": ("assets/environment/terrain/stone_3x2.png", 1, 0, "assets/environment/terrain/stone_3x2.col"),
-    "stone_stair_2x2": ("assets/environment/terrain/stone_stair_2x2.png", 1, 0, "assets/environment/terrain/stone_stair_2x2.col"),
-    "wall_11x3": ("assets/environment/terrain/wall_11x3.png", 1, 0, "assets/environment/terrain/wall_11x3.col"),
-    "stone_8x2_2": ("assets/environment/terrain/stone_8x2_2.png", 1, 0, "assets/environment/terrain/stone_8x2_2.col"),
+    "stone_9x9": ("{sys._MEIPASS}/assets/environment/terrain/stone_9x9.png", 1, 0, "{sys._MEIPASS}/assets/environment/terrain/stone_9x9.col"),
+    "stone_3x2": ("{sys._MEIPASS}/assets/environment/terrain/stone_3x2.png", 1, 0, "{sys._MEIPASS}/assets/environment/terrain/stone_3x2.col"),
+    "stone_stair_2x2": ("{sys._MEIPASS}/assets/environment/terrain/stone_stair_2x2.png", 1, 0, "{sys._MEIPASS}/assets/environment/terrain/stone_stair_2x2.col"),
+    "wall_11x3": ("{sys._MEIPASS}/assets/environment/terrain/wall_11x3.png", 1, 0, "{sys._MEIPASS}/assets/environment/terrain/wall_11x3.col"),
+    "stone_8x2_2": ("{sys._MEIPASS}/assets/environment/terrain/stone_8x2_2.png", 1, 0, "{sys._MEIPASS}/assets/environment/terrain/stone_8x2_2.col"),
 
     #decoration
-    "lamp": ("assets/environment/decoration/lamp.png",),
-    "block_8": ("assets/environment/decoration/block_8.png",),
-    "warning_sign": ("assets/environment/decoration/warning_sign.png",),
-    "warning_signpost": ("assets/environment/decoration/warning_signpost.png",),
-    "trashbags":("assets/environment/decoration/trashbags.png",),
-    "trashbags_large":("assets/environment/decoration/trashbags_large.png",),
-    "ceiling_lamp": ("assets/environment/decoration/ceiling_lamp.png",),
-    "ceiling_lamp_large": ("assets/environment/decoration/ceiling_lamp_large.png",),
+    "lamp": ("{sys._MEIPASS}/assets/environment/decoration/lamp.png",),
+    "block_8": ("{sys._MEIPASS}/assets/environment/decoration/block_8.png",),
+    "warning_sign": ("{sys._MEIPASS}/assets/environment/decoration/warning_sign.png",),
+    "warning_signpost": ("{sys._MEIPASS}/assets/environment/decoration/warning_signpost.png",),
+    "trashbags":("{sys._MEIPASS}/assets/environment/decoration/trashbags.png",),
+    "trashbags_large":("{sys._MEIPASS}/assets/environment/decoration/trashbags_large.png",),
+    "ceiling_lamp": ("{sys._MEIPASS}/assets/environment/decoration/ceiling_lamp.png",),
+    "ceiling_lamp_large": ("{sys._MEIPASS}/assets/environment/decoration/ceiling_lamp_large.png",),
     
     #animated
-    "rubbish_bin": ("assets/environment/decoration/rubbish_bin_atlas.png", 5, 5),
-    "aircon_1x1": ("assets/environment/decoration/aircon_1x1_atlas.png", 3, 30),
-    "aircon_2x1": ("assets/environment/decoration/aircon_2x1_atlas.png", 3, 30),
-    "burning_barrel_black": ("assets/environment/decoration/burning_barrel_black_atlas.png", 3, 6),
-    "burning_barrel_red": ("assets/environment/decoration/burning_barrel_red_atlas.png", 3, 6),
+    "rubbish_bin": ("{sys._MEIPASS}/assets/environment/decoration/rubbish_bin_atlas.png", 5, 5),
+    "aircon_1x1": ("{sys._MEIPASS}/assets/environment/decoration/aircon_1x1_atlas.png", 3, 30),
+    "aircon_2x1": ("{sys._MEIPASS}/assets/environment/decoration/aircon_2x1_atlas.png", 3, 30),
+    "burning_barrel_black": ("{sys._MEIPASS}/assets/environment/decoration/burning_barrel_black_atlas.png", 3, 6),
+    "burning_barrel_red": ("{sys._MEIPASS}/assets/environment/decoration/burning_barrel_red_atlas.png", 3, 6),
     
     #misc
-    "electricity": ("assets/environment/misc/electricity.png", 2, 4),
-    "door": ("assets/environment/misc/door.png",),
+    "electricity": ("{sys._MEIPASS}/assets/environment/misc/electricity.png", 2, 4),
+    "door": ("{sys._MEIPASS}/assets/environment/misc/door.png",),
 
     #background
-    "default_back_wall": ("assets/environment/background/default_back_wall.png",),
-    "door_frame": ("assets/environment/background/door_frame.png",),
-    "door_frame_2": ("assets/environment/background/door_frame_2.png",),
+    "default_back_wall": ("{sys._MEIPASS}/assets/environment/background/default_back_wall.png",),
+    "door_frame": ("{sys._MEIPASS}/assets/environment/background/door_frame.png",),
+    "door_frame_2": ("{sys._MEIPASS}/assets/environment/background/door_frame_2.png",),
 
     #parallax_backdrop
-    "bd_1": ("assets/environment/parallax_backdrop/1.png",),
-    "bd_2": ("assets/environment/parallax_backdrop/2.png",),
-    "bd_3": ("assets/environment/parallax_backdrop/3.png",),
-    "bd_4": ("assets/environment/parallax_backdrop/4.png",),
+    "bd_1": ("{sys._MEIPASS}/assets/environment/parallax_backdrop/1.png",),
+    "bd_2": ("{sys._MEIPASS}/assets/environment/parallax_backdrop/2.png",),
+    "bd_3": ("{sys._MEIPASS}/assets/environment/parallax_backdrop/3.png",),
+    "bd_4": ("{sys._MEIPASS}/assets/environment/parallax_backdrop/4.png",),
 }
 
 textures = {}
 texture_load()
 
-bullet_sfx = pygame.mixer.Sound("assets/sound/sfx/pulse_shot.wav")
-sword_slash_sfx = pygame.mixer.Sound("assets/sound/sfx/sword_slash.wav")
-sword_hit_sfx = pygame.mixer.Sound("assets/sound/sfx/sword_hit.wav")
+bullet_sfx = pygame.mixer.Sound("{sys._MEIPASS}/assets/sound/sfx/pulse_shot.wav")
+sword_slash_sfx = pygame.mixer.Sound("{sys._MEIPASS}/assets/sound/sfx/sword_slash.wav")
+sword_hit_sfx = pygame.mixer.Sound("{sys._MEIPASS}/assets/sound/sfx/sword_hit.wav")
 
 enemies = {
     "debug_enemy" : [Enemy, (textures["debug_enemy_atlas"], 0.6, 1.75,)],
