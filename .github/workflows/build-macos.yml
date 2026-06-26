@@ -31,6 +31,7 @@ jobs:
 
           pygame.init()
           pygame.display.set_mode((640, 480), pygame.OPENGL | pygame.HIDDEN)
+          pygame.display.gl_set_attribute(pygame.GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, 1)
           ctx = moderngl.create_context()
           print(ctx.info)
           "
