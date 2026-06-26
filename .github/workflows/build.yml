@@ -14,16 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            artifact: Windows
-            sep: ";"
-          - os: ubuntu-latest
-            artifact: Linux
-            sep: ":"
-          - os: macos-14
-            artifact: macOS
-            sep: ":"
+        os: [windows-latest, ubuntu-latest, macos-14]
 
     runs-on: ${{ matrix.os }}
 
@@ -44,25 +35,54 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" == "macOS" ]]; then
-            pyinstaller --onefile --windowed --name PhantomSprinter --icon icon.png --add-data assets:assets --add-data level:level main.py
-          else
-            pyinstaller --onefile --windowed --name PhantomSprinter --splash splash.png --icon icon.png --add-data assets:assets --add-data level:level --splash-center primary main.py
-          fi
+          pyinstaller --onefile --windowed \
+            --name PhantomSprinter \
+            --icon icon.png \
+            --add-data "assets:assets" \
+            --add-data "level:level" \
+            main.py
 
-      - name: Package macOS app
+      # ─────────────────────────────
+      # WINDOWS (single .exe)
+      # ─────────────────────────────
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cd dist
+          mv PhantomSprinter.exe PhantomSprinter-Windows.exe
+
+      # ─────────────────────────────
+      # LINUX (single binary)
+      # ─────────────────────────────
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cd dist
+          mv PhantomSprinter PhantomSprinter-Linux
+
+      # ─────────────────────────────
+      # MACOS (zip)
+      # ─────────────────────────────
+      - name: Package macOS
         if: runner.os == 'macOS'
         shell: bash
         run: |
           cd dist
-          zip -r ../macOS.zip PhantomSprinter.app || zip -r ../macOS.zip PhantomSprinter
+          zip -r PhantomSprinter-macOS.zip PhantomSprinter.app || zip -r PhantomSprinter-macOS.zip PhantomSprinter
 
-      - uses: actions/upload-artifact@v4
+      # ─────────────────────────────
+      # Upload clean artifacts only
+      # ─────────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: ${{ runner.os }}
           path: |
-            dist/*
-            macOS.zip
+            dist/PhantomSprinter-Windows.exe
+            dist/PhantomSprinter-Linux
+            dist/PhantomSprinter-macOS.zip
 
   release:
     needs: build
@@ -83,4 +103,5 @@ jobs:
           tag_name: beta
           name: Beta Build
           prerelease: true
-          files: artifacts/**
+          files: |
+            artifacts/**
