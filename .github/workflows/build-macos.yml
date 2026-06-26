@@ -39,13 +39,9 @@ jobs:
           print(ctx.info)
           "
 
-      - name: Run game
-        run: |
-          python main.py
-
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile main.py
+          pyinstaller --onefile hwmain.py
 
       - uses: actions/upload-artifact@v4
         with:
