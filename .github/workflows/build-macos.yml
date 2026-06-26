@@ -41,7 +41,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller main.py
+          pyinstaller --onefile --windowed --add-data assets:assets --add-data level:level main.py
 
       - uses: actions/upload-artifact@v4
         with:
