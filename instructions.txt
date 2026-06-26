@@ -1,0 +1,17 @@
+pip install -r requirements.txt
+python main.py
+
+
+Controls:
+W - Jump
+A - Walk Left
+D - Walk Right
+Space - Attack
+F11 - Fullscreen
+
+Debug:
+F3 - Open Debug Menu
+F4 - Enable Noclip
+Ctrl + R - Reload Chunks
+
+Scroll in debug mode zooms the view out
