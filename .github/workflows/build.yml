@@ -74,13 +74,13 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Show files (debug)
+        run: ls -R artifacts
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: beta
           name: Beta Build
           prerelease: true
-          files: |
-            artifacts/Windows/*
-            artifacts/Linux/*
-            artifacts/macOS/macOS.zip
+          files: artifacts/**
