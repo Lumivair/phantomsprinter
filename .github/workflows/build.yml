@@ -50,20 +50,19 @@ jobs:
             pyinstaller --onefile --windowed --name PhantomSprinter --splash splash.png --icon icon.png --add-data assets:assets --add-data level:level --splash-center primary main.py
           fi
 
-      - name: Zip output
+      - name: Package macOS app
+        if: runner.os == 'macOS'
         shell: bash
         run: |
           cd dist
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell Compress-Archive * ../${{ matrix.artifact }}.zip
-          else
-            zip -r ../${{ matrix.artifact }}.zip .
-          fi
+          zip -r ../macOS.zip PhantomSprinter.app || zip -r ../macOS.zip PhantomSprinter
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.zip
+          path: |
+            dist/*
+            macOS.zip
 
   release:
     needs: build
@@ -81,6 +80,6 @@ jobs:
           name: Beta Build
           prerelease: true
           files: |
-            artifacts/Windows/Windows.zip
-            artifacts/Linux/Linux.zip
+            artifacts/Windows/*
+            artifacts/Linux/*
             artifacts/macOS/macOS.zip
