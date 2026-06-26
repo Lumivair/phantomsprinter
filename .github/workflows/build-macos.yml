@@ -2,7 +2,8 @@ name: Build macOS
 
 on:
   push:
-    branches: [main]
+    branches:
+      - macos-build-test
   workflow_dispatch:
 
 jobs:
@@ -19,17 +20,17 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # pip install pygame moderngl pyinstaller
-
-          # or if you have requirements.txt
           pip install -r requirements.txt
+          pip install pyinstaller
 
       - name: Show OpenGL info
         run: |
           python -c "
-          import pygame, moderngl
+          import pygame
+          import moderngl
+
           pygame.init()
-          pygame.display.set_mode((640,480), pygame.OPENGL | pygame.HIDDEN)
+          pygame.display.set_mode((640, 480), pygame.OPENGL | pygame.HIDDEN)
           ctx = moderngl.create_context()
           print(ctx.info)
           "
@@ -45,4 +46,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macOS-build
-          path: dist/*
+          path: dist/
