@@ -13,3 +13,6 @@ Items:
 
 
 2d scrolling platformer, level clearing(kill all enemies), optional objectives in each level, no health bar, sprinting with stamina
+
+adaptive sync https://wikis.khronos.org/opengl/Swap_Interval#Adaptive_Vsync
+add to pygame: https://pyga.me/docs/ref/display.html#pygame.display.set_mode

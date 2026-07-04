@@ -1,0 +1,12 @@
+default_back_wall 0 16 {layer=3;collision=false}
+brick_16x1 0 1
+stone_2x1_2 0 10
+stone_1x1 5 9
+stone_4x1 10 8
+stone_2x1_1 3 12
+stone_5x1 9 13
+wall_1x15 0 16
+#rifle_enemy 1 12 {layer=2;collision=false;border=-31,-31}
+electricity 1 1.5 {layer=2;collision=false;damage=true}
+electricity 6 1.5 {layer=2;collision=false;damage=true}
+electricity 11 1.5 {layer=2;collision=false;damage=true}

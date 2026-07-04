@@ -114,6 +114,7 @@ class Camera:
 pygame.init()
 screen = pygame.display.set_mode((1280, 720))
 pygame.display.set_caption("PhantomSprinter") # set window title
+pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 now = datetime.datetime.now() # set variable now to time
 running = True
@@ -126,7 +127,11 @@ assets = {
     "font": pygame.font.Font("assets/font/Saira_Stencil/static/SairaStencil-SemiBold.ttf", 50),
     "debug_ground": pygame.image.load("assets/debug/floor.png"),
     "box2x": pygame.image.load("assets/debug/box2x.png"),
-    "box": pygame.image.load("assets/debug/box.png")
+    "box": pygame.image.load("assets/debug/box.png"),
+    "floor": pygame.image.load("assets/environment/floors/floor1.png"),
+    "wall1": pygame.image.load("assets/environment/walls/wall1.png"),
+    "wall2": pygame.image.load("assets/environment/walls/wall2.png"),
+    "compass": pygame.image.load("assets/debug/compass.png")
 }
 
 player = Entity("hanspeter", 8, 8, "assets/debug/player.png", get_screen_ratio(), 32 * get_screen_ratio(), 64 * get_screen_ratio())
@@ -172,7 +177,11 @@ while True:
     if player.y < -25:
         exit()
     screen.fill("purple")
-    debug_menu = assets["font"].render(f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}", True, "red")
+    debug_menu = [
+        f"FPS: {clock.get_fps()}",
+        f"X: {round(player.x, 1)}    Y: {round(player.y, 1)}",
+        f"CHUNK: {str(player.chunk())}"
+                  ]
 
     # UPDATE CHUNKS
     update_loaded_chunks()
@@ -194,15 +203,16 @@ while True:
 
     # UPDATE CAMERA
     camera.update() # remove for static cam        
-
     # RENDERING
-    if debug == True:
-        screen.blit(debug_menu, (0,0))
+    print(clock.get_fps())
     for object in objects:
         screen.blit(object.texture, (object.scoords()))
     screen.blit(player.texture, (player.scoords()))
-
+    if debug == True:
+        for line in debug_menu:
+            screen.blit(assets["font"].render(line, True, "red"), (0, debug_menu.index(line) * 60))
     # flip() the display to put your work on screen
     pygame.display.flip()
 
-    clock.tick(60)
+    clock.tick_busy_loop(60)
+    # clock.tick(60)

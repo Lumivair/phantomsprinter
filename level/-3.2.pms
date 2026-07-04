@@ -1,0 +1,7 @@
+default_back_wall 0 16 {layer=3;collision=false}
+cables 13 10 {layer=3;collision=false;elevator_move_2=true}
+elevator 13 4.5 {layer=1;collision=true;elevator=true}
+elevator_background 13 4.7 {layer=3;collision=false;elevator_move=true}
+brick_14x1 -1 16
+
+elevator 2 4.7
