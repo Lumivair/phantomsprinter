@@ -1,0 +1,3 @@
+/home/felix/git/phantomsprinter/build/CMakeFiles/PhantomSprinter.dir
+/home/felix/git/phantomsprinter/build/CMakeFiles/edit_cache.dir
+/home/felix/git/phantomsprinter/build/CMakeFiles/rebuild_cache.dir

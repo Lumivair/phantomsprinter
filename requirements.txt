@@ -1,4 +1,0 @@
-pygame
-moderngl
-numpy
-Pillow

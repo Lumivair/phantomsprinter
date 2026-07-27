@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/felix/git/phantomsprinter/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
